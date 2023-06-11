@@ -2,14 +2,15 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.1
- * @date 2023-06-06
+ * @version 0.2
+ * @date 2023-06-11
  * 
  * @copyright Copyright (c) 2023
 */
 
 /* INCLUDED LIBRARIES*/
-
+#include <avr/io.h>
+#include <avr/intterupt.h>
 
 /* LOCAL FILES*/
 #include "Array_control.h"
@@ -18,10 +19,11 @@
 /*************
  * CONSTANTS *
  *************/
-bool DEBUG = false;
+bool DEBUG = true;
 
 #define BATT_MAX_VOLTS
 #define BATT_FLOOR_VOLTS
+#define UNLOADED_VOLTAGE_MES_WAIT_TIME 
 
 /******************
 * PIN ASSIGNMENTS *
@@ -58,13 +60,13 @@ bool DEBUG = false;
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
 /* ADC PIN DECLARATIONS*/
-/*
-#define ADC_1
-#define ADC_2
-#define ADC_3
-#define ADC_4
-#define ADC_5
-*/
+
+#define BATT_TAP_1 'A0'   //Battery 1
+#define BATT_TAP_2 'A1'   //Battery 2
+#define BATT_TAP_3 'A2'   //Battery 3
+#define BATT_TAP_4 'A3'   //Battery 4
+#define BATT_TAP_5 'A4'   //Battery 5
+
 
 /* FET CONFIGURATION TABLE
 | Fet# | 0 | 1 | 2 | 3 | 4 | 5 |
@@ -117,7 +119,10 @@ void setup(){
     pinMode(OUT_FET9,  OUTPUT);
     pinMode(OUT_FET10, OUTPUT);
 
+    sei(); //Enable interrupts
+
     /* ADC PIN CONFIGURATIONS*/
+    analogReferance(DEFUALT); //5V for Vref-pin of ADC
 
    BATT_CASE_0(); //initialize to full array disconnect
 } //end setup
@@ -136,9 +141,19 @@ void setup(){
  */
 
 void loop(void){
-         
+    array_struct unloaded_voltages;
+    array_struct loaded_voltages;
+
+    array_loaded_voltages(loaded_voltages);
+
+    Serial.print("Voltage measurement results\n");
+    Serial.print("Bat_1 = %.2lf\n", i, loaded_voltages.batt_1);
+    //Serial.print("Bat_1 = %.2lf\n", i, loaded_voltages.batt_1);
+    
+
+/*
     BATT_CASE_0();
-    delay(2500);
+    delay(1000);
     //call batt case zero before switching, that way we only turn on the ones we need and there is 
         // enough time for switching
 
@@ -146,30 +161,37 @@ void loop(void){
     delay(2500);
 
     BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
+    delay(1000);   //wait a few seconds before advancing
 
     BATT_CASE_2();
     delay(2500);
 
     BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
+    delay(1000);   //wait a few seconds before advancing
 
     BATT_CASE_3();
     delay(2500);
 
     BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
+    delay(1000);   //wait a few seconds before advancing
 
     BATT_CASE_4();
     delay(2500);
 
     BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
+    delay(1000);   //wait a few seconds before advancing
 
     BATT_CASE_5();
     delay(2500);
+*/
 
 } //end loop
+
+
+/**********************
+* INTERRUPT FUNCTIONS *
+**********************/
+
 
 
 /****************************
@@ -200,7 +222,6 @@ void BATT_CASE_0(){
 
 } //end BATT_CASE_0
 
-
 void BATT_CASE_1(){
     //ENGAGE OUTPUT FETS: 2, 5, 7, 9, 10
     //ENGAGE CHARGING FETS: 1, 2
@@ -216,7 +237,6 @@ void BATT_CASE_1(){
     digitalWrite(OUT_FET10, HIGH);
 
 } //end BATT_CASE_1
-
 
 void BATT_CASE_2(){
     //ENGAGE OUTPUT FETS: 1, 4, 7, 9, 10
@@ -234,7 +254,6 @@ void BATT_CASE_2(){
 
 } //end BATT_CASE_2
 
-
 void BATT_CASE_3(){
     //ENGAGE OUTPUT FETS: 1, 3, 6, 9, 10
     //ENGAGE CHARGING FETS: 5, 6
@@ -251,7 +270,6 @@ void BATT_CASE_3(){
 
 } //end BATT_CASE_3
 
-
 void BATT_CASE_4(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 8, 10
     //ENGAGE CHARGING FETS: 7, 8
@@ -267,7 +285,6 @@ void BATT_CASE_4(){
     digitalWrite(OUT_FET10, HIGH);
 
 } //end BATT_CASE_4
-
 
 void BATT_CASE_5(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 7, 9
@@ -288,5 +305,29 @@ void BATT_CASE_5(){
 /*******************************
  * OTHER FUNCTION DECLARATIONS *
  *******************************/
+
+void array_loaded_voltages(array_struct &loaded_voltages){
+    
+    loaded_voltages.batt_1 = analogRead(BATT_TAP_1);
+    loaded_voltages.batt_2 = analogRead(BATT_TAP_2);
+    loaded_voltages.batt_3 = analogRead(BATT_TAP_3);
+    loaded_voltages.batt_4 = analogRead(BATT_TAP_4);
+    loaded_voltages.batt_5 = analogRead(BATT_TAP_5);
+
+}
+
+void array_unloaded_voltages(array_struct &unloaded_voltages){
+
+    BATT_CASE_0();
+
+    delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
+
+    unloaded_voltages.batt_1 = analogRead(BATT_TAP_1);
+    unloaded_voltages.batt_2 = analogRead(BATT_TAP_2);
+    unloaded_voltages.batt_3 = analogRead(BATT_TAP_3);
+    unloaded_voltages.batt_4 = analogRead(BATT_TAP_4);
+    unloaded_voltages.batt_5 = analogRead(BATT_TAP_5);
+
+}
 
 //end Battery_Array_Control.c

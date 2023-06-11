@@ -2,7 +2,7 @@
  * @file Array_control.h
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes for Battery_array_control
- * @version 0.1
+ * @version 0.2
  * @date 2023-06-07
  * 
  * @copyright Copyright (c) 2023
@@ -29,7 +29,7 @@ void BATT_CASE_4();
 void BATT_CASE_5();
 //Functions are to return 1 if the operation was successful and 0 if not
 
-//void array_loaded_voltages();
-//void array_unloaded_voltage();
+void array_loaded_voltages(array_struct &loaded_voltages);
+void array_unloaded_voltages(array_struct &unloaded_voltages);
 
 #endif //end Array_control_H
