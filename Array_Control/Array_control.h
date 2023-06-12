@@ -10,14 +10,14 @@
 
 #ifndef Array_control_H
 
-typedef struct Array_control
+typedef struct Array_readings
 {
-    double batt_1;
-    double batt_2;
-    double batt_3;
-    double batt_4;
-    double batt_5;
-} array_struct;
+    float batt_1;
+    float batt_2;
+    float batt_3;
+    float batt_4;
+    float batt_5;
+} readings_struct;
 
 
 /** Functions are to set the output configuration of the array */
@@ -27,9 +27,10 @@ void BATT_CASE_2();
 void BATT_CASE_3();
 void BATT_CASE_4();
 void BATT_CASE_5();
-//Functions are to return 1 if the operation was successful and 0 if not
 
-void array_loaded_voltages(array_struct &loaded_voltages);
-void array_unloaded_voltages(array_struct &unloaded_voltages);
+//Measurement functions
+void array_loaded_voltages(Array_readings &loaded_voltages);
+void array_unloaded_voltages(Array_readings &unloaded_voltages);
+
 
 #endif //end Array_control_H

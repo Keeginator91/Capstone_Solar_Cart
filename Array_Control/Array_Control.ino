@@ -9,8 +9,7 @@
 */
 
 /* INCLUDED LIBRARIES*/
-#include <avr/io.h>
-#include <avr/intterupt.h>
+
 
 /* LOCAL FILES*/
 #include "Array_control.h"
@@ -21,9 +20,20 @@
  *************/
 bool DEBUG = true;
 
+//adc conversion constants
+#define ADC_RESOLUTION 1023.0 //max value adc will return
+#define REF_VOLT          5.0 //reference voltage value
+#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
+
+//Voltage divider network conversion constants
+#define R1_VAL 100000.0 //100K ohm for R1
+#define R2_VAL  33000.0 //33K ohm for R2
+#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+
+//Battery measurement constants
 #define BATT_MAX_VOLTS
 #define BATT_FLOOR_VOLTS
-#define UNLOADED_VOLTAGE_MES_WAIT_TIME 
+#define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
 /******************
 * PIN ASSIGNMENTS *
@@ -61,11 +71,11 @@ bool DEBUG = true;
 
 /* ADC PIN DECLARATIONS*/
 
-#define BATT_TAP_1 'A0'   //Battery 1
-#define BATT_TAP_2 'A1'   //Battery 2
-#define BATT_TAP_3 'A2'   //Battery 3
-#define BATT_TAP_4 'A3'   //Battery 4
-#define BATT_TAP_5 'A4'   //Battery 5
+#define BATT_TAP_1 A0  //Battery 1
+//#define BATT_TAP_2 A1   //Battery 2
+//#define BATT_TAP_3 A2   //Battery 3
+//#define BATT_TAP_4 A3   //Battery 4
+//#define BATT_TAP_5 A4   //Battery 5
 
 
 /* FET CONFIGURATION TABLE
@@ -119,12 +129,13 @@ void setup(){
     pinMode(OUT_FET9,  OUTPUT);
     pinMode(OUT_FET10, OUTPUT);
 
-    sei(); //Enable interrupts
+    //sei(); //Enable interrupts
 
     /* ADC PIN CONFIGURATIONS*/
-    analogReferance(DEFUALT); //5V for Vref-pin of ADC
+    analogReference(DEFAULT); //5V for Vref-pin of ADC
 
    BATT_CASE_0(); //initialize to full array disconnect
+
 } //end setup
 
 
@@ -140,59 +151,22 @@ void setup(){
  * because the cases only set the relays high.
  */
 
-void loop(void){
-    array_struct unloaded_voltages;
-    array_struct loaded_voltages;
+int count = 0;
 
+void loop(void){
+    readings_struct unloaded_voltages;
+    readings_struct loaded_voltages;
+
+    Serial.print(count);
     array_loaded_voltages(loaded_voltages);
 
-    Serial.print("Voltage measurement results\n");
-    Serial.print("Bat_1 = %.2lf\n", i, loaded_voltages.batt_1);
-    //Serial.print("Bat_1 = %.2lf\n", i, loaded_voltages.batt_1);
-    
-
-/*
-    BATT_CASE_0();
-    delay(1000);
-    //call batt case zero before switching, that way we only turn on the ones we need and there is 
-        // enough time for switching
-
-    BATT_CASE_1();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(1000);   //wait a few seconds before advancing
-
-    BATT_CASE_2();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(1000);   //wait a few seconds before advancing
-
-    BATT_CASE_3();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(1000);   //wait a few seconds before advancing
-
-    BATT_CASE_4();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(1000);   //wait a few seconds before advancing
-
-    BATT_CASE_5();
-    delay(2500);
-*/
-
+    count++;
 } //end loop
 
 
 /**********************
 * INTERRUPT FUNCTIONS *
 **********************/
-
-
 
 /****************************
 * BATTERY CASE DECLARATIONS *
@@ -306,28 +280,29 @@ void BATT_CASE_5(){
  * OTHER FUNCTION DECLARATIONS *
  *******************************/
 
-void array_loaded_voltages(array_struct &loaded_voltages){
+void array_loaded_voltages(Array_readings &voltage_struct){
     
-    loaded_voltages.batt_1 = analogRead(BATT_TAP_1);
-    loaded_voltages.batt_2 = analogRead(BATT_TAP_2);
-    loaded_voltages.batt_3 = analogRead(BATT_TAP_3);
-    loaded_voltages.batt_4 = analogRead(BATT_TAP_4);
-    loaded_voltages.batt_5 = analogRead(BATT_TAP_5);
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    //make other measurements
+
+
+
+    //print what was read
+    Serial.print(" reading: ");
+    Serial.print(voltage_struct.batt_1);
+    Serial.print("\n");
 
 }
 
-void array_unloaded_voltages(array_struct &unloaded_voltages){
+void array_unloaded_voltages(Array_readings &voltage_struct){
 
-    BATT_CASE_0();
+    BATT_CASE_0();  //disconnect batteries for some amount of time
 
-    delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
-
-    unloaded_voltages.batt_1 = analogRead(BATT_TAP_1);
-    unloaded_voltages.batt_2 = analogRead(BATT_TAP_2);
-    unloaded_voltages.batt_3 = analogRead(BATT_TAP_3);
-    unloaded_voltages.batt_4 = analogRead(BATT_TAP_4);
-    unloaded_voltages.batt_5 = analogRead(BATT_TAP_5);
-
+    //delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
+    /*
+     * after the delay to let the battery voltages rest, we can call the array_loaded_voltages()
+     * since this function just has added features compared to that function 
+     */
 }
 
 //end Battery_Array_Control.c
