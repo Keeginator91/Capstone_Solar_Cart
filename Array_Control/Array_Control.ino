@@ -45,12 +45,16 @@ bool DEBUG = true;
 /*
 #define CHG_FET1  //paired with OUT_FET2
 #define CHG_FET2  //paired with OUT_FET2
+
 #define CHG_FET3  //paired with OUT_FET4
 #define CHG_FET4  //paired with OUT_FET4
+
 #define CHG_FET5  //paired with OUT_FET6
 #define CHG_FET6  //paired with OUT_FET6
+
 #define CHG_FET7  //paired with OUT_FET8
 #define CHG_FET8  //paired with OUT_FET8
+
 #define CHG_FET9  //paired with OUT_FET9
 #define CHG_FET10 //paired with OUT_FET9
 */
@@ -70,12 +74,11 @@ bool DEBUG = true;
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
 /* ADC PIN DECLARATIONS*/
-
 #define BATT_TAP_1 A0  //Battery 1
-//#define BATT_TAP_2 A1   //Battery 2
-//#define BATT_TAP_3 A2   //Battery 3
-//#define BATT_TAP_4 A3   //Battery 4
-//#define BATT_TAP_5 A4   //Battery 5
+#define BATT_TAP_2 A1  //Battery 2
+#define BATT_TAP_3 A2  //Battery 3
+#define BATT_TAP_4 A3  //Battery 4
+#define BATT_TAP_5 A4  //Battery 5
 
 
 /* FET CONFIGURATION TABLE
@@ -282,15 +285,12 @@ void BATT_CASE_5(){
 
 void array_loaded_voltages(Array_readings &voltage_struct){
     
+    //                    |     raw adc read        |
     voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    //make other measurements
-
-
-
-    //print what was read
-    Serial.print(" reading: ");
-    Serial.print(voltage_struct.batt_1);
-    Serial.print("\n");
+    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
 
 }
 
@@ -305,4 +305,4 @@ void array_unloaded_voltages(Array_readings &voltage_struct){
      */
 }
 
-//end Battery_Array_Control.c
+//end Array_Control.c
