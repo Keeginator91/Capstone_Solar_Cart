@@ -2,8 +2,8 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.1
- * @date 2023-06-06
+ * @version 0.2
+ * @date 2023-06-11
  * 
  * @copyright Copyright (c) 2023
 */
@@ -18,10 +18,22 @@
 /*************
  * CONSTANTS *
  *************/
-bool DEBUG = false;
+bool DEBUG = true;
 
+//adc conversion constants
+#define ADC_RESOLUTION 1023.0 //max value adc will return
+#define REF_VOLT          5.0 //reference voltage value
+#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
+
+//Voltage divider network conversion constants
+#define R1_VAL 100000.0 //100K ohm for R1
+#define R2_VAL  33000.0 //33K ohm for R2
+#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+
+//Battery measurement constants
 #define BATT_MAX_VOLTS
 #define BATT_FLOOR_VOLTS
+#define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
 /******************
 * PIN ASSIGNMENTS *
@@ -33,12 +45,16 @@ bool DEBUG = false;
 /*
 #define CHG_FET1  //paired with OUT_FET2
 #define CHG_FET2  //paired with OUT_FET2
+
 #define CHG_FET3  //paired with OUT_FET4
 #define CHG_FET4  //paired with OUT_FET4
+
 #define CHG_FET5  //paired with OUT_FET6
 #define CHG_FET6  //paired with OUT_FET6
+
 #define CHG_FET7  //paired with OUT_FET8
 #define CHG_FET8  //paired with OUT_FET8
+
 #define CHG_FET9  //paired with OUT_FET9
 #define CHG_FET10 //paired with OUT_FET9
 */
@@ -58,13 +74,12 @@ bool DEBUG = false;
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
 /* ADC PIN DECLARATIONS*/
-/*
-#define ADC_1
-#define ADC_2
-#define ADC_3
-#define ADC_4
-#define ADC_5
-*/
+#define BATT_TAP_1 A0  //Battery 1
+#define BATT_TAP_2 A1  //Battery 2
+#define BATT_TAP_3 A2  //Battery 3
+#define BATT_TAP_4 A3  //Battery 4
+#define BATT_TAP_5 A4  //Battery 5
+
 
 /* FET CONFIGURATION TABLE
 | Fet# | 0 | 1 | 2 | 3 | 4 | 5 |
@@ -117,9 +132,13 @@ void setup(){
     pinMode(OUT_FET9,  OUTPUT);
     pinMode(OUT_FET10, OUTPUT);
 
+    //sei(); //Enable interrupts
+
     /* ADC PIN CONFIGURATIONS*/
+    analogReference(DEFAULT); //5V for Vref-pin of ADC
 
    BATT_CASE_0(); //initialize to full array disconnect
+
 } //end setup
 
 
@@ -135,42 +154,22 @@ void setup(){
  * because the cases only set the relays high.
  */
 
+int count = 0;
+
 void loop(void){
-         
-    BATT_CASE_0();
-    delay(2500);
-    //call batt case zero before switching, that way we only turn on the ones we need and there is 
-        // enough time for switching
+    readings_struct unloaded_voltages;
+    readings_struct loaded_voltages;
 
-    BATT_CASE_1();
-    delay(2500);
+    Serial.print(count);
+    array_loaded_voltages(loaded_voltages);
 
-    BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
-
-    BATT_CASE_2();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
-
-    BATT_CASE_3();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
-
-    BATT_CASE_4();
-    delay(2500);
-
-    BATT_CASE_0(); //reset relays
-    delay(2500);   //wait a few seconds before advancing
-
-    BATT_CASE_5();
-    delay(2500);
-
+    count++;
 } //end loop
 
+
+/**********************
+* INTERRUPT FUNCTIONS *
+**********************/
 
 /****************************
 * BATTERY CASE DECLARATIONS *
@@ -200,7 +199,6 @@ void BATT_CASE_0(){
 
 } //end BATT_CASE_0
 
-
 void BATT_CASE_1(){
     //ENGAGE OUTPUT FETS: 2, 5, 7, 9, 10
     //ENGAGE CHARGING FETS: 1, 2
@@ -216,7 +214,6 @@ void BATT_CASE_1(){
     digitalWrite(OUT_FET10, HIGH);
 
 } //end BATT_CASE_1
-
 
 void BATT_CASE_2(){
     //ENGAGE OUTPUT FETS: 1, 4, 7, 9, 10
@@ -234,7 +231,6 @@ void BATT_CASE_2(){
 
 } //end BATT_CASE_2
 
-
 void BATT_CASE_3(){
     //ENGAGE OUTPUT FETS: 1, 3, 6, 9, 10
     //ENGAGE CHARGING FETS: 5, 6
@@ -251,7 +247,6 @@ void BATT_CASE_3(){
 
 } //end BATT_CASE_3
 
-
 void BATT_CASE_4(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 8, 10
     //ENGAGE CHARGING FETS: 7, 8
@@ -267,7 +262,6 @@ void BATT_CASE_4(){
     digitalWrite(OUT_FET10, HIGH);
 
 } //end BATT_CASE_4
-
 
 void BATT_CASE_5(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 7, 9
@@ -289,4 +283,26 @@ void BATT_CASE_5(){
  * OTHER FUNCTION DECLARATIONS *
  *******************************/
 
-//end Battery_Array_Control.c
+void array_loaded_voltages(Array_readings &voltage_struct){
+    
+    //                    |     raw adc read        |
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+
+}
+
+void array_unloaded_voltages(Array_readings &voltage_struct){
+
+    BATT_CASE_0();  //disconnect batteries for some amount of time
+
+    //delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
+    /*
+     * after the delay to let the battery voltages rest, we can call the array_loaded_voltages()
+     * since this function just has added features compared to that function 
+     */
+}
+
+//end Array_Control.c
