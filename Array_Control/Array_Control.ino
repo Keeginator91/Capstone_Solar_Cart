@@ -148,11 +148,6 @@ void setup(){
 //Main loop will continually poll the battery voltages
     // if a battery is too low, switch to charging that battery
 
-/**
- * @brief Run through the battery cases to make sure everything works properly.
- * the BATT_CASE_0 and delay in between the case advance, is to reset the relay positions 
- * because the cases only set the relays high.
- */
 
 int count = 0;
 
