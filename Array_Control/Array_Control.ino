@@ -1,19 +1,17 @@
 /**
  * @file Array_Control.c
- * @author Keegan Smith (keeginator42@gmail.com)
+ * @authors Keegan Smith (keeginator42@gmail.com), Matthew DeSantis (mdesantis0701@gmail.com), Thomas Cecelya (thomas_cecelya@student.uml.edu)
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.2
- * @date 2023-06-11
+ * @version 0.3
+ * @date 2023-06-27
  * 
  * @copyright Copyright (c) 2023
 */
 
 /* INCLUDED LIBRARIES*/
 
-
 /* LOCAL FILES*/
 #include "Array_control.h"
-
 
 /*************
  * CONSTANTS *
@@ -23,17 +21,13 @@ bool DEBUG = true;
 //adc conversion constants
 #define ADC_RESOLUTION 1023.0 //max value adc will return
 #define REF_VOLT          5.0 //reference voltage value
-#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
-
-//Voltage divider network conversion constants
-#define R1_VAL 100000.0 //100K ohm for R1
-#define R2_VAL  33000.0 //33K ohm for R2
-#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+#define DIFF_AMP_GAIN 0.25 // gain of amplifier for array network
+#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION); 
 
 //Battery measurement constants
 #define BATT_MAX_VOLTS
-#define BATT_FLOOR_VOLTS
-#define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
+#define BATT_FLOOR_VOLTS 3.0 // Volts - output of differential amplifier without scale factor
+#define UNLOADED_VOLTAGE_MES_WAIT_TIME // ms
 
 /******************
 * PIN ASSIGNMENTS *
@@ -148,17 +142,18 @@ void setup(){
 //Main loop will continually poll the battery voltages
     // if a battery is too low, switch to charging that battery
 
-
-int count = 0;
+/**
+ * @brief Run through the battery cases to make sure everything works properly.
+ * the BATT_CASE_0 and delay in between the case advance, is to reset the relay positions 
+ * because the cases only set the relays high.
+ */
 
 void loop(void){
     readings_struct unloaded_voltages;
     readings_struct loaded_voltages;
 
-    Serial.print(count);
     array_loaded_voltages(loaded_voltages);
 
-    count++;
 } //end loop
 
 
@@ -278,14 +273,58 @@ void BATT_CASE_5(){
  * OTHER FUNCTION DECLARATIONS *
  *******************************/
 
+void min_batt_disconnect(int min_index){ // function to disconnect the lowest battery from the array
+    // given batt_min return value make a switch statement that calls the battery cases
+    switch(min_index) {
+        case 0: 
+            BATT_CASE_1();
+
+        case 1: 
+            BATT_CASE_2();
+
+        case 2: 
+            BATT_CASE_3();
+
+        case 3: 
+            BATT_CASE_4();
+
+        case 4:
+            BATT_CASE_5();
+        
+    }
+}
+
+// array loaded voltages(); => this function takes as input a structure containing the measured battery
 void array_loaded_voltages(Array_readings &voltage_struct){
-    
     //                    |     raw adc read        |
-    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    voltage_struct.batt_4 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN; 
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN; 
+    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN;
+    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN;
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN;
+    voltage_struct.batt_5 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / DIFF_AMP_GAIN;
+
+}
+
+void find_min_voltage(Array_readings &voltage_struct){
+
+    float batt_min = 5.0;
+    float batt_max = 100;   // 100 is arbitrary because it is unattainable, very large number
+    //BATT_FLOOR_VOLTS = 3.0
+    
+    // 5 battery voltages
+    float batt_volt_arr[] = {voltage_struct.batt_1, voltage_struct.batt_2, voltage_struct.batt_3, voltage_struct.batt_4, voltage_struct.batt_5};
+
+    for (int i = 0; i < 5; i++){      
+        for (int j = 0; j < 5; j++){
+            if (batt_volt_arr[i] < batt_volt_arr[j]){
+                voltage_struct.min_index = i;
+            }
+            else if (batt_volt_arr[i] > bat_volt_arr[j]){
+                voltage_struct.max_index = i;
+            }
+        }
+    }
 
 }
 
@@ -298,6 +337,10 @@ void array_unloaded_voltages(Array_readings &voltage_struct){
      * after the delay to let the battery voltages rest, we can call the array_loaded_voltages()
      * since this function just has added features compared to that function 
      */
+
+     //                    |     raw adc read        |
+    array_loaded_voltages(voltage_struct);
+
 }
 
 //end Array_Control.c

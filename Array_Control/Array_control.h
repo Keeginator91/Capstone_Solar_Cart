@@ -2,7 +2,7 @@
  * @file Array_control.h
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes for Battery_array_control
- * @version 0.2
+ * @version 0.3
  * @date 2023-06-07
  * 
  * @copyright Copyright (c) 2023
@@ -17,6 +17,8 @@ typedef struct Array_readings
     float batt_3;
     float batt_4;
     float batt_5;
+    int min_index;
+    int max_index;
 } readings_struct;
 
 
@@ -31,6 +33,7 @@ void BATT_CASE_5();
 //Measurement functions
 void array_loaded_voltages(Array_readings &loaded_voltages);
 void array_unloaded_voltages(Array_readings &unloaded_voltages);
-
+void min_batt_disconnect(int min_index);
+void find_min_voltage(Array_readings &voltage_struct);
 
 #endif //end Array_control_H
