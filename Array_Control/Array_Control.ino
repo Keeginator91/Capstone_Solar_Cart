@@ -21,8 +21,8 @@ bool DEBUG = true;
 //adc conversion constants
 #define ADC_RESOLUTION 1023.0 //max value adc will return
 #define REF_VOLT          5.0 //reference voltage value
-#define DIFF_AMP_GAIN 0.25 // gain of amplifier for array network
-#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION); 
+#define DIFF_AMP_GAIN    0.25 // gain of amplifier for array network
+#define ADC_CONVERS_FACT (REF_VOLT / ADC_RESOLUTION); 
 
 //Battery measurement constants
 #define BATT_MAX_VOLTS
@@ -307,10 +307,6 @@ void array_loaded_voltages(Array_readings &voltage_struct){
 }
 
 void find_min_voltage(Array_readings &voltage_struct){
-
-    float batt_min = 5.0;
-    float batt_max = 100;   // 100 is arbitrary because it is unattainable, very large number
-    //BATT_FLOOR_VOLTS = 3.0
     
     // 5 battery voltages
     float batt_volt_arr[] = {voltage_struct.batt_1, voltage_struct.batt_2, voltage_struct.batt_3, voltage_struct.batt_4, voltage_struct.batt_5};
@@ -320,7 +316,7 @@ void find_min_voltage(Array_readings &voltage_struct){
             if (batt_volt_arr[i] < batt_volt_arr[j]){
                 voltage_struct.min_index = i;
             }
-            else if (batt_volt_arr[i] > bat_volt_arr[j]){
+            else if (batt_volt_arr[i] > batt_volt_arr[j]){
                 voltage_struct.max_index = i;
             }
         }
