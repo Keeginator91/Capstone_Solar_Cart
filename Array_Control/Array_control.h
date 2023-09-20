@@ -10,27 +10,24 @@
 
 #ifndef Array_control_H
 
-typedef struct Array_readings
+typedef struct battery
 {
-    float batt_1;
-    float batt_2;
-    float batt_3;
-    float batt_4;
-    float batt_5;
+   float voltage_mes;
+   bool is_charging = false;
 } readings_struct;
 
 
 /** Functions are to set the output configuration of the array */
-void BATT_CASE_0();
-void BATT_CASE_1(); 
+void FULL_FET_DISCONNECT();
+void BATT_CASE_0(); 
+void BATT_CASE_1();
 void BATT_CASE_2();
 void BATT_CASE_3();
 void BATT_CASE_4();
-void BATT_CASE_5();
 
 //Measurement functions
-void array_loaded_voltages(Array_readings &loaded_voltages);
-void array_unloaded_voltages(Array_readings &unloaded_voltages);
+void array_loaded_voltages();
+void array_unloaded_voltages();
 
 
 #endif //end Array_control_H
