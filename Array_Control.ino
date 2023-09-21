@@ -1,6 +1,7 @@
 /**
  * @file Array_Control.c
- * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
+ * @author Keegan Smith (keeginator42@gmail.com)
+ *  edits made by Matthew DeSantis (mdesantis0701@gmail.com)
  * @brief This file contains the main function to control and maintain the battery array
  * @version 0.2
  * @date 2023-06-11
@@ -8,33 +9,62 @@
  * @copyright Copyright (c) 2023
 */
 
-/* INCLUDED LIBRARIES*/
+//**** .h file declarations ****//
 
+#ifndef Array_control_H
+
+typedef struct Array_readings
+{
+    float batt_1;
+    float batt_2;
+    float batt_3;
+    float batt_4;
+    float batt_5;
+} readings_struct;
+
+/** Functions are to set the output configuration of the array */
+void BATT_CASE_0();
+void BATT_CASE_1(); 
+void BATT_CASE_2();
+void BATT_CASE_3();
+void BATT_CASE_4();
+void BATT_CASE_5();
+
+// Measurement functions
+void array_loaded_voltages(Array_readings &loaded_voltages);
+void array_unloaded_voltages(Array_readings &unloaded_voltages);
+
+// additional battery array function
+void min_batt_disconnect(int min_index);
+
+#endif //end Array_control_H
+
+//**** end of .h declarations ****//
+
+/* INCLUDED LIBRARIES*/
 
 /* LOCAL FILES*/
 #include "Array_control.h"
-
 
 /*************
  * CONSTANTS *
  *************/
 bool DEBUG = true;
 
-#define NUM_BATTS 5  //Number of batteries in the array
-
 //adc conversion constants
 #define ADC_RESOLUTION 1023.0 //max value adc will return
 #define REF_VOLT          5.0 //reference voltage value
-#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
+#define DIFF_AMP_SCALE 0.25 // gain of amplifier for array network
+#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION) * DIFF_AMP_SCALE;
 
 //Voltage divider network conversion constants
-#define R1_VAL 100000.0 //100K ohm for R1
-#define R2_VAL  33000.0 //33K ohm for R2
-#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+// #define R1_VAL 100000.0 //100K ohm for R1
+// #define R2_VAL  33000.0 //33K ohm for R2
+// #define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
 
 //Battery measurement constants
-#define BATT_MAX_VOLTS 14
-#define BATT_FLOOR_VOLTS 11.8
+#define BATT_MAX_VOLTS
+#define BATT_FLOOR_VOLTS 3.0 // Volts - output of differential amplifier without scale factor
 #define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
 /******************
@@ -112,10 +142,6 @@ FETs 1-10 are charging FETs
 FETs 11-21 are output FET pin assignments 1-11
 */
 
-// global array continaing measured battery voltages
-// used for determining the highest and lowest voltages of a single battery array with iterations
-battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
-
 /******************
  * SETUP FUNCITON *
  *****************/
@@ -143,7 +169,7 @@ void setup(){
     /* ADC PIN CONFIGURATIONS*/
     analogReference(DEFAULT); //5V for Vref-pin of ADC
 
-   FULL_FET_DISCONNECT(); //initialize to full array disconnect
+   BATT_CASE_0(); //initialize to full array disconnect
 
 } //end setup
 
@@ -156,74 +182,21 @@ void setup(){
 
 /**
  * @brief Run through the battery cases to make sure everything works properly.
- * the FULL_FET_DISCONNECT and delay in between the case advance, is to reset the relay positions 
+ * the BATT_CASE_0 and delay in between the case advance, is to reset the relay positions 
  * because the cases only set the relays high.
  */
 
+int count = 0;
 
 void loop(void){
-    array_loaded_voltages();
+    readings_struct unloaded_voltages;
+    readings_struct loaded_voltages;
 
-    // these limits are for loop comparison
-    float min = 100;    
-    float max = 0;     
+    Serial.print(count);
+    array_loaded_voltages(loaded_voltages);
 
-    // storing the values of our min and max indices
-    int max_batt_index = 0; 
-    int min_batt_index = 0;
+    count++;
 
-    //iterate over the battery measurent array and find our min and max values
-    //and save their respective indecies
-    for (int i = 0; i < NUM_BATTS; i++) {
-        
-        //we want to ingore the lower battery if it's already being charged.
-        if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
-            min_batt_index = i;
-            min = batts_array[i].voltage_mes;
-        }
-        //We only care if a battery is at it's max voltage if its charging. We'll probably run into issues here with HW -KS
-        else if (batts_array[i].voltage_mes > max && batts_array[i].is_charging) {
-            max_batt_index = i; 
-            max = batts_array[i].voltage_mes;
-        }
-    }
-
-    //If battery at the max index is fully charged, remove from charger
-    //Also check if we have a dead battery in the array so that we can charge it.
-    if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
-        
-        FULL_FET_DISCONNECT(); // disengage all FETS 
-
-        //Use the min index to change the charging scheme to the lowest battery in the array
-        switch (min_batt_index)
-        {
-            case 0:
-                BATT_CASE_0();
-                break;
-
-            case 1:
-                BATT_CASE_1();
-                break;
-
-            case 2:
-                BATT_CASE_2();
-                break;
-
-            case 3:
-                BATT_CASE_3();
-                break;
-
-            case 4:
-                BATT_CASE_4();
-                break;
-            
-            default:
-                //Catistrophic failure. Restart the system by calling loop.
-                if(DEBUG) Serial.println("ERROR: min_bat_index out of bounds. Restarting system...");
-                FULL_FET_DISCONNECT(); //make sure we disconnected everything so we don't blow up
-                loop(); //Call loop to restart program
-        }
-    }    
 } //end loop
 
 
@@ -239,11 +212,11 @@ void loop(void){
 */
 
 //Default array case, everything low
-void FULL_FET_DISCONNECT(){
+void BATT_CASE_0(){
 
     if (DEBUG)
     {
-         Serial.println("FETs disconnected");
+         Serial.println("BATT_CASE_0");
     }
 
     digitalWrite(OUT_FET1,  LOW);
@@ -257,12 +230,9 @@ void FULL_FET_DISCONNECT(){
     digitalWrite(OUT_FET9,  LOW);
     digitalWrite(OUT_FET10, LOW);
 
-} //end FULL_FET_DISCONNECT
+} //end BATT_CASE_0
 
-/**
- * Charging battery 0
-*/
-void BATT_CASE_0(){
+void BATT_CASE_1(){
     //ENGAGE OUTPUT FETS: 2, 5, 7, 9, 10
     //ENGAGE CHARGING FETS: 1, 2
     if (DEBUG)
@@ -276,11 +246,9 @@ void BATT_CASE_0(){
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
-    batts_array[0].is_charging = true; //raise is_charging flag
+} //end BATT_CASE_1
 
-} //end BATT_CASE_0
-
-void BATT_CASE_1(){
+void BATT_CASE_2(){
     //ENGAGE OUTPUT FETS: 1, 4, 7, 9, 10
     //ENGAGE CHARGING FETS: 3, 4
     if (DEBUG)
@@ -294,10 +262,9 @@ void BATT_CASE_1(){
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
-    batts_array[1].is_charging = true; //raise is_charging flag
-}
+} //end BATT_CASE_2
 
-void BATT_CASE_2(){
+void BATT_CASE_3(){
     //ENGAGE OUTPUT FETS: 1, 3, 6, 9, 10
     //ENGAGE CHARGING FETS: 5, 6
     if (DEBUG)
@@ -311,11 +278,9 @@ void BATT_CASE_2(){
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
-    batts_array[2].is_charging = true; //raise is_charging flag
+} //end BATT_CASE_3
 
-} //end BATT_CASE_2
-
-void BATT_CASE_3(){
+void BATT_CASE_4(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 8, 10
     //ENGAGE CHARGING FETS: 7, 8
     if (DEBUG)
@@ -329,11 +294,9 @@ void BATT_CASE_3(){
     digitalWrite(OUT_FET8,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
-    batts_array[3].is_charging = true; //raise is_charging flag
+} //end BATT_CASE_4
 
-} //end BATT_CASE_3
-
-void BATT_CASE_4(){
+void BATT_CASE_5(){
     //ENGAGE OUTPUT FETS: 1, 3, 5, 7, 9
     //ENGAGE CHARGING FETS: 9, 10
     if (DEBUG)
@@ -347,35 +310,91 @@ void BATT_CASE_4(){
     digitalWrite(OUT_FET7, HIGH);
     digitalWrite(OUT_FET9, HIGH);
 
-    batts_array[4].is_charging = true; //raise is_charging flag
-
-} //end BATT_CASE_4
+} //end BATT_CASE_5
 
 /*******************************
  * OTHER FUNCTION DECLARATIONS *
  *******************************/
 
-void array_loaded_voltages(){
-    
+void min_batt_disconnect(int min_index) { // function to disconnect the lowest battery from the array
+    // given batt_min return value make a switch statement that calls the battery cases
+    switch(min_index) {
+        case 0: {
+            BATT_CASE_1();
+        }
+
+        case 1: {
+            BATT_CASE_2();
+        }
+
+        case 2: {
+            BATT_CASE_3();
+        }
+
+        case 3: {
+            BATT_CASE_4();
+        }
+
+        case 4: {
+            BATT_CASE_5();
+        }
+        
+    }
+}
+
+// array loaded voltages(); => this function takes as input a structure containing the measured battery
+void array_loaded_voltages(Array_readings &voltage_struct) {
     //                    |     raw adc read        |
-    batts_array[0] = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[1] = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[2] = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[3] = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[4] = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT);
+    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT);
+    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT);
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT);
+    voltage_struct.batt_5 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT);
+
+    return 0;
+    
+}
+
+float find_min_voltage() {
+   
+    int i = 0;  // loop index
+    float batt_min = 5.0;
+    int min_index = 0;
+    //BATT_FLOOR_VOLTS = 3.0
+
+    // 5 battery voltages
+    float batt_volt_arr[] = {voltage_struct.batt_1, voltage_struct.batt_2, voltage_struct.batt_3, voltage_struct.batt_4, voltage_struct.batt_5};
+
+    for(i = 0; i < 4; i++) { // 5 batteries, iterate through each one
+    // find the minimum battery percentage
+        if(batt_volt_arr[i] < batt_min) {
+            batt_min = batt_volt_arr[i];
+            min_index = i;
+        }
+    }
+    // return batt_min;
+    return min_index;
 
 }
 
-void array_unloaded_voltages(){
+void array_unloaded_voltages(Array_readings &voltage_struct) {
 
-    FULL_FET_DISCONNECT();  //disconnect batteries for some amount of time
-    delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
+    BATT_CASE_0();  //disconnect batteries for some amount of time
+
+    //delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
     /*
      * after the delay to let the battery voltages rest, we can call the array_loaded_voltages()
      * since this function just has added features compared to that function 
      */
-    array_loaded_voltages();
-    
+
+     //                    |     raw adc read        |
+    voltage_struct.batt_1 = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT);
+    voltage_struct.batt_2 = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT);
+    voltage_struct.batt_3 = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT);
+    voltage_struct.batt_4 = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT);
+    voltage_struct.batt_5 = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT);
+
+    return 0;
 }
 
 //end Array_Control.c
