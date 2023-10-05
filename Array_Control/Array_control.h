@@ -2,8 +2,8 @@
  * @file Array_control.h
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes for Battery_array_control
- * @version 0.2
- * @date 2023-06-07
+ * @version 0.3
+ * @date 2023-09-27
  * 
  * @copyright Copyright (c) 2023
  **/
@@ -13,8 +13,9 @@
 typedef struct battery
 {
    float voltage_mes;
-   bool is_charging = false;
-} readings_struct;
+   bool  is_charging;
+   int   adc_pin_assignment;
+} battery;
 
 
 /** Functions are to set the output configuration of the array */
