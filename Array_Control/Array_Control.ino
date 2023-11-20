@@ -37,6 +37,14 @@ bool DEBUG = true;
 #define BATT_FLOOR_VOLTS 11.8
 #define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
+//MOSFET switching times (seconds)
+#define MOSFET_TURN_ON   0.000000021 
+#define MOSFET_RISE_TIME 0.000000120 
+#define MOSFET_TURN_OFF  0.000000180 
+#define MOSFET_FALL_TIME 0.000000115
+#define MOSFET_ON_DELAY (MOSFET_TURN_ON + MOSTFET_ON_DELAY)
+#define MOSFET_OFF_DELAY (MOSFET_TURN_OFF + MOSFET_FALL_TIME)
+
 /******************
 * PIN ASSIGNMENTS *
 ******************/
@@ -257,6 +265,8 @@ void FULL_FET_DISCONNECT(){
     digitalWrite(OUT_FET9,  LOW);
     digitalWrite(OUT_FET10, LOW);
 
+    delay(MOSFET_OFF_DELAY);
+
 } //end FULL_FET_DISCONNECT
 
 /**
@@ -276,6 +286,8 @@ void BATT_CASE_0(){
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
+    delay(MOSFET_ON_DELAY);
+
     batts_array[0].is_charging = true; //raise is_charging flag
 
 } //end BATT_CASE_0
@@ -294,6 +306,8 @@ void BATT_CASE_1(){
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
+    delay(MOSFET_ON_DELAY);
+
     batts_array[1].is_charging = true; //raise is_charging flag
 }
 
@@ -310,6 +324,8 @@ void BATT_CASE_2(){
     digitalWrite(OUT_FET6,  HIGH);
     digitalWrite(OUT_FET9,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
+
+    delay(MOSFET_ON_DELAY);
 
     batts_array[2].is_charging = true; //raise is_charging flag
 
@@ -329,6 +345,8 @@ void BATT_CASE_3(){
     digitalWrite(OUT_FET8,  HIGH);
     digitalWrite(OUT_FET10, HIGH);
 
+    delay(MOSFET_ON_DELAY);
+
     batts_array[3].is_charging = true; //raise is_charging flag
 
 } //end BATT_CASE_3
@@ -346,6 +364,8 @@ void BATT_CASE_4(){
     digitalWrite(OUT_FET5, HIGH);
     digitalWrite(OUT_FET7, HIGH);
     digitalWrite(OUT_FET9, HIGH);
+
+    delay(MOSFET_ON_DELAY);
 
     batts_array[4].is_charging = true; //raise is_charging flag
 
@@ -376,6 +396,4 @@ void array_unloaded_voltages(){
      */
     array_loaded_voltages();
     
-}
-
-//end Array_Control.c
+}//end Array_Control.c
