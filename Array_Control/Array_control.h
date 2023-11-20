@@ -13,7 +13,8 @@
 typedef struct battery
 {
    float voltage_mes;
-   bool is_charging = false;
+   bool  is_charging;
+   int   adc_pin_assignment;
 } readings_struct;
 
 

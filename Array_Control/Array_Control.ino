@@ -9,11 +9,10 @@
 */
 
 /* INCLUDED LIBRARIES*/
-
+#include <string.h>
 
 /* LOCAL FILES*/
 #include "Array_control.h"
-
 
 /*************
  * CONSTANTS *
@@ -121,28 +120,38 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
  *****************/
 
 void setup(){
+    int adc_pins = {A0, A1, A2, A3, A4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
+                                                //vs code won't like this, but A0, A1 etc. are passed into analogRead(pin) as an int
     if (DEBUG)
     {
         Serial.begin(19200);            //serial output for debugging
     }
     
     /* FET PIN CONFIGURATIONS */
-    pinMode(OUT_FET1,  OUTPUT);
-    pinMode(OUT_FET2,  OUTPUT);
-    pinMode(OUT_FET3,  OUTPUT);
-    pinMode(OUT_FET4,  OUTPUT);
-    pinMode(OUT_FET5,  OUTPUT);
-    pinMode(OUT_FET6,  OUTPUT);
-    pinMode(OUT_FET7,  OUTPUT);
-    pinMode(OUT_FET8,  OUTPUT);
-    pinMode(OUT_FET9,  OUTPUT);
-    pinMode(OUT_FET10, OUTPUT);
-
+    for (int i = 2; i <= 11; i++)
+    {
+        pinMode(i, OUTPUT);
+        if (DEBUG)
+        {
+            Serial.println("OUT_FET%d, config to output", i - 1);
+        }
+        
+    }
+    
     //sei(); //Enable interrupts
 
-    /* ADC PIN CONFIGURATIONS*/
-    analogReference(DEFAULT); //5V for Vref-pin of ADC
 
+    /* ADC PIN CONFIGURATIONS*/
+    analogReference(DEFAULT); //arduino specific function, 5V for Vref-pin of ADC
+
+    //initialize the adc pin and the is_charging flag in the structure
+    for (int i = 0; i < NUM_BATTS; i++)
+    {
+        batts_array[i].adc_pin_assignment = adc_pins[i]; //we'll fill the pin assignment in the structure from the adc pin array 
+                                                            //the other way we could do this is brute force
+        batts_array[i].is_charging = false;
+    }
+    
    FULL_FET_DISCONNECT(); //initialize to full array disconnect
 
 } //end setup
@@ -162,68 +171,67 @@ void setup(){
 
 
 void loop(void){
-    array_loaded_voltages();
+    // print a list of commands after typing "help"
+    // must call each function in an infinite loop and return
 
-    // these limits are for loop comparison
-    float min = 100;    
-    float max = 0;     
-
-    // storing the values of our min and max indices
-    int max_batt_index = 0; 
-    int min_batt_index = 0;
-
-    //iterate over the battery measurent array and find our min and max values
-    //and save their respective indecies
-    for (int i = 0; i < NUM_BATTS; i++) {
+    // UI for the user to either activate a battery case or print the battery measurements
         
-        //we want to ingore the lower battery if it's already being charged.
-        if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
-            min_batt_index = i;
-            min = batts_array[i].voltage_mes;
-        }
-        //We only care if a battery is at it's max voltage if its charging. We'll probably run into issues here with HW -KS
-        else if (batts_array[i].voltage_mes > max && batts_array[i].is_charging) {
-            max_batt_index = i; 
-            max = batts_array[i].voltage_mes;
-        }
-    }
+    char CMD;
+    Serial.print("Enter a command or type h for list: ");
+    Serial.read(CMD);
 
-    //If battery at the max index is fully charged, remove from charger
-    //Also check if we have a dead battery in the array so that we can charge it.
-    if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
+    switch (CMD){
+
+        case 'h':
+            // "help" case 'h' will print a list of possible commands to type
+            Serial.print("h :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
+            // any other command will reprompt the user
+            break;
         
-        FULL_FET_DISCONNECT(); // disengage all FETS 
+        case 'b':
+            // 'b' will call the battery case to activate
 
-        //Use the min index to change the charging scheme to the lowest battery in the array
-        switch (min_batt_index)
-        {
-            case 0:
-                BATT_CASE_0();
-                break;
+            char batt_case_num;
+            // prompt the user for a battery case
+            Serial.print("Battery Cases:\n0\n1\n2\n3\n4\nD - FET Disconnect\nEnter case number: ");
+            Serial.read(batt_case_num);
+            switch(batt_case_num){
+                case '0':
+                    BATT_CASE_0();  
+                    break;
+                case '1':
+                    BATT_CASE_1();
+                    break;
+                case '2':
+                    BATT_CASE_2();
+                    break;
+                case '3':
+                    BATT_CASE_3();
+                    break;
+                case '4':
+                    BATT_CASE_4();
+                    break;
+                case 'D':
+                    FULL_FET_DISCONNECT();
+                    break;
+                default:
+                    Serial.print("ERROR: invalid case number");
+            }
+            break;
 
-            case 1:
-                BATT_CASE_1();
-                break;
-
-            case 2:
-                BATT_CASE_2();
-                break;
-
-            case 3:
-                BATT_CASE_3();
-                break;
-
-            case 4:
-                BATT_CASE_4();
-                break;
+        case 'm': 
+            array_loaded_voltages();
             
-            default:
-                //Catistrophic failure. Restart the system by calling loop.
-                if(DEBUG) Serial.println("ERROR: min_bat_index out of bounds. Restarting system...");
-                FULL_FET_DISCONNECT(); //make sure we disconnected everything so we don't blow up
-                loop(); //Call loop to restart program
-        }
-    }    
+            // pull up a list of the battery measurements in the array
+            for (int i = 0; i < NUM_BATTS; i++)
+            {
+                Serial.println(batts_array[i].voltage_mes);
+            }
+            break;
+        default:
+            Serial.print("ERROR: Invalid Command");
+    }
+ 
 } //end loop
 
 
@@ -356,14 +364,12 @@ void BATT_CASE_4(){
  *******************************/
 
 void array_loaded_voltages(){
-    
-    //                    |     raw adc read        |
-    batts_array[0] = (analogRead(BATT_TAP_1) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[1] = (analogRead(BATT_TAP_2) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[2] = (analogRead(BATT_TAP_3) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[3] = (analogRead(BATT_TAP_4) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
-    batts_array[4] = (analogRead(BATT_TAP_5) * ADC_CONVERS_FACT) / R_NET_SCALE_FACTOR;
 
+    for (int i = 0; i < NUM_BATTS; i++)
+    {
+        batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
+    }
+    
 }
 
 void array_unloaded_voltages(){
@@ -375,7 +381,74 @@ void array_unloaded_voltages(){
      * since this function just has added features compared to that function 
      */
     array_loaded_voltages();
-    
+
 }
+
+
+void main_loop_function(){
+   // call array of connected battery voltages
+   array_loaded_voltages();
+   // these limits are for loop comparison
+    float min = 100;    
+    float max = 0;     
+
+    // storing the values of our min and max indices
+    int max_batt_index = 0; 
+    int min_batt_index = 0;
+
+    //iterate over the battery measurent array and find our min and max values
+    //and save their respective indecies
+    for (int i = 0; i < NUM_BATTS; i++) {
+        
+        //we want to ingore the lower battery if it's already being charged.
+        if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
+            min_batt_index = i;
+            min = batts_array[i].voltage_mes;
+        }
+        //We only care if a battery is at it's max voltage if its charging. We'll probably run into issues here with HW -KS
+        else if (batts_array[i].voltage_mes > max && batts_array[i].is_charging) {
+            max_batt_index = i; 
+            max = batts_array[i].voltage_mes;
+        }
+    }
+
+    //If battery at the max index is fully charged, remove from charger
+    //Also check if we have a dead battery in the array so that we can charge it.
+    if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
+        
+        FULL_FET_DISCONNECT(); // disengage all FETS 
+
+        //Use the min index to change the charging scheme to the lowest battery in the array
+        switch (min_batt_index)
+        {
+            case 0:
+                BATT_CASE_0();
+                break;
+
+            case 1:
+                BATT_CASE_1();
+                break;
+
+            case 2:
+                BATT_CASE_2();
+                break;
+
+            case 3:
+                BATT_CASE_3();
+                break;
+
+            case 4:
+                BATT_CASE_4();
+                break;
+            
+            default:
+                //Catistrophic failure. Restart the system by calling loop.
+                if(DEBUG) Serial.println("ERROR: min_bat_index out of bounds. Restarting system...");
+                FULL_FET_DISCONNECT(); //make sure we disconnected everything so we don't blow up
+                loop(); //Call loop to restart program
+        }
+    }    
+}
+
 
 //end Array_Control.c
