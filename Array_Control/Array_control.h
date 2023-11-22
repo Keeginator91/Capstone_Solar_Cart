@@ -2,8 +2,8 @@
  * @file Array_control.h
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes for Battery_array_control
- * @version 0.3
- * @date 2023-09-27
+ * @version 0.4
+ * @date 2023-11-21
  * 
  * @copyright Copyright (c) 2023
  **/
@@ -17,7 +17,6 @@ typedef struct battery
    int   adc_pin_assignment;
 } battery;
 
-
 /** Functions are to set the output configuration of the array */
 void FULL_FET_DISCONNECT();
 void BATT_CASE_0(); 
@@ -29,6 +28,5 @@ void BATT_CASE_4();
 //Measurement functions
 void array_loaded_voltages();
 void array_unloaded_voltages();
-
 
 #endif //end Array_control_H

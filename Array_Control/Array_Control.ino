@@ -2,8 +2,8 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.4
- * @date 2023-09-27
+ * @version 0.5
+ * @date 2023-11-21
  * 
  * @copyright Copyright (c) 2023
 */
@@ -42,7 +42,7 @@ bool DEBUG = true;
 #define MOSFET_RISE_TIME 0.000000120 
 #define MOSFET_TURN_OFF  0.000000180 
 #define MOSFET_FALL_TIME 0.000000115
-#define MOSFET_ON_DELAY (MOSFET_TURN_ON + MOSTFET_ON_DELAY)
+#define MOSFET_ON_DELAY (MOSFET_TURN_ON + MOSFET_RISE_TIME)
 #define MOSFET_OFF_DELAY (MOSFET_TURN_OFF + MOSFET_FALL_TIME)
 
 /******************
@@ -83,13 +83,18 @@ bool DEBUG = true;
 #define OUT_FET10 11
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
-/* ADC PIN DECLARATIONS*/
-#define BATT_TAP_1 A0  //Battery 1
-#define BATT_TAP_2 A1  //Battery 2
-#define BATT_TAP_3 A2  //Battery 3
-#define BATT_TAP_4 A3  //Battery 4
-#define BATT_TAP_5 A4  //Battery 5
-
+/**
+ * @brief as per arduino mega header file, these
+ * are the integer values for the respective ADC inputs
+ * 
+ */
+/* ADC PIN DECLARATIONS
+#define ADC_0 54  //Battery 1
+#define ADC_1 55  //Battery 2
+#define ADC_2 56  //Battery 3
+#define ADC_3 57  //Battery 4
+#define ADC_4 58  //Battery 5
+**/
 
 /* FET CONFIGURATION TABLE
 | Fet# | 0 | 1 | 2 | 3 | 4 | 5 |
@@ -129,8 +134,8 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
  *****************/
 
 void setup(){
-    int adc_pins = {A0, A1, A2, A3, A4 }; //ADC pins are read as integers so we'll throw them in here for pin assignments 
-                                                //vs code won't like this, but A0, A1 etc. are passed into analogRead(pin) as an int
+    //integer values reflect arduino mega pins
+    int adc_pins[5] = {54, 55, 56, 57, 58}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
     if (DEBUG)
     {
         Serial.begin(19200);            //serial output for debugging
@@ -142,7 +147,9 @@ void setup(){
         pinMode(i, OUTPUT);
         if (DEBUG)
         {
-            Serial.println("OUT_FET%d, config to output", i - 1);
+            Serial.print("OUT_FET"); 
+            Serial.print(i - 1);
+            Serial.println("config to output");
         }
         
     }
@@ -157,7 +164,6 @@ void setup(){
     for (int i = 0; i < NUM_BATTS; i++)
     {
         batts_array[i].adc_pin_assignment = adc_pins[i]; //we'll fill the pin assignment in the structure from the adc pin array 
-                                                            //the other way we could do this is brute force
         batts_array[i].is_charging = false;
     }
     
@@ -398,7 +404,7 @@ void array_loaded_voltages(){
 void array_unloaded_voltages(){
 
     FULL_FET_DISCONNECT();  //disconnect batteries for some amount of time
-    delay(UNLOADED_VOLTAGE_MES_WAIT_TIME);
+    //delay(UNLOADED_VOLTAGE_MES_WAIT_TIME); // should not be needed since there is a delay to let all FETS disconnect
     /*
      * after the delay to let the battery voltages rest, we can call the array_loaded_voltages()
      * since this function just has added features compared to that function 
