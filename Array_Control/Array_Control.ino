@@ -10,10 +10,11 @@
 
 /* INCLUDED LIBRARIES*/
 #include <stdbool.h>
+#include <string.h>
+
 
 /* LOCAL FILES*/
 #include "Array_control.h"
-
 
 /*************
  * CONSTANTS *
@@ -136,6 +137,13 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
  *****************/
 
 void setup(){
+    
+    // Establish serial port for debugging
+    if (DEBUG)
+    {
+        Serial.begin(19200);            //serial output for debugging
+    }
+  
     //integer values reflect arduino mega pins
     int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
 
@@ -158,22 +166,17 @@ void setup(){
         for (int FET_assignment_index = 0; FET_assignment_index < NUM_FETS ; FET_assignment_index++)
         {
             pinMode(FET_assignment_index, OUTPUT);  //might as well set the pins to outputs while we are iterating
-
+          
+            if (DEBUG)
+            {
+                Serial.println("OUT_FET%d, config to output", FET_assignment_index - 1);
+            }
             //set the FETS array in the structure to the 2d element of the FET_assignments array
             batts_array[battery_case_index].FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
         }
     }
-    
-    if (DEBUG)
-    {
-        Serial.begin(19200);            //serial output for debugging
-    }
-    
-    //sei(); //Enable interrupts
 
-    /* ADC PIN CONFIGURATIONS*/
-    analogReference(DEFAULT); //arduino specific function, 5V for Vref-pin of ADC    
-    FULL_FET_DISCONNECT(); //initialize to full array disconnect
+   FULL_FET_DISCONNECT(); //initialize to full array disconnect
 
 } //end setup
 
@@ -192,18 +195,83 @@ void setup(){
 
 
 void loop(void){
-    array_loaded_voltages(); //perform an array measurement
+    // Manual Debug Control
+    if (DEBUG){
+      // print a list of commands after typing "help"
+      // must call each function in an infinite loop and return
 
-    // these limits are for loop comparison
-    float min = 100;    
-    float max = 0;     
+      // UI for the user to either activate a battery case or print the battery measurements
+        
+      char CMD;
+      Serial.print("Enter a command or type h for list: ");
+      Serial.read(CMD);
 
-    // storing the values of our min and max indices
-    int max_batt_index = 0; 
-    int min_batt_index = 0;
+      switch (CMD){
+        
+        case 'h':
+          // "help" case 'h' will print a list of possible commands to type
+          Serial.print("h :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
+          // any other command will reprompt the user
+          break;
+        
+        case 'b':
+          // 'b' will call the battery case to activate
+          char batt_case_num;
+          // prompt the user for a battery case
+          Serial.print("Battery Cases:\n0\n1\n2\n3\n4\nD - FET Disconnect\nEnter case number: ");
+          Serial.read(batt_case_num);
+          switch(batt_case_num){
+              case '0':
+                  BATT_CASE_0();  
+                  break;
+              case '1':
+                  BATT_CASE_1();
+                  break;
+              case '2':
+                  BATT_CASE_2();
+                  break;
+              case '3':
+                  BATT_CASE_3();
+                  break;
+              case '4':
+                  BATT_CASE_4();
+                  break;
+              case 'D':
+                  FULL_FET_DISCONNECT();
+                  break;
+              default:
+                  Serial.print("ERROR: invalid case number");
+          }
+          break;
 
-    //iterate over the battery array and find our min and max values and save respective indecies
-    for (int i = 0; i < NUM_BATTS; i++) {
+        case 'm': 
+          array_loaded_voltages();
+            
+          // pull up a list of the battery measurements in the array
+          for (int i = 0; i < NUM_BATTS; i++){
+              Serial.println(batts_array[i].voltage_mes);
+          }
+          break;
+        
+        default:
+          Serial.print("ERROR: Invalid Command");
+      }
+    }
+  
+    // Automatic MOSFET Control
+    else {
+      array_loaded_voltages(); //perform an array measurement
+
+      // these limits are for loop comparison
+      float min = 100;    
+      float max = 0;     
+
+      // storing the values of our min and max indices
+      int max_batt_index = 0; 
+      int min_batt_index = 0;
+
+      //iterate over the battery array and find our min and max values and save respective indecies
+      for (int i = 0; i < NUM_BATTS; i++) {
         
         //we want to ingore the lower battery if it's already being charged.
         if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
@@ -215,21 +283,21 @@ void loop(void){
             max_batt_index = i; 
             max = batts_array[i].voltage_mes;
         }
-    }
+      }
 
-    //check for a maxed or dead battery and charge the dead one, or take the max battery off and charge the battery with the lowest voltage
-    if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
+      //check for a maxed or dead battery and charge the dead one, or take the max battery off and charge the battery with the lowest voltage
+      if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
         
         FULL_FET_DISCONNECT(); // disengage all FETS 
 
         //Use the min index to change the charging scheme to the lowest battery in the array
                 //we'll do this by passing the min battery index through the case switch
         BATT_CASE_SWITCH(min_batt_index);
-    }
-
-    else {
+      }
+      else {
         BATT_CASE_SWTICH(0); //if all the batteries are evenly charged, then we'll just go to a default case so that nothing gets borked
-    }    
+      }    
+    }
 } //end loop
 
 
@@ -307,5 +375,5 @@ void array_unloaded_voltages(){
      * since this function just has added features compared to that function 
      */
     array_loaded_voltages();
-    
-}//end Array_Control.c
+}
+

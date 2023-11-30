@@ -19,6 +19,7 @@ typedef struct battery
    int   FETS[5];
 } battery;
 
+
 /** Functions are to set the output configuration of the array */
 void FULL_FET_DISCONNECT();
 void BATT_CASE_SWTICH(int batt_case); 
