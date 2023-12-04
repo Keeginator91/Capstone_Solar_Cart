@@ -2,8 +2,8 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.6
- * @date 2023-11-22
+ * @version 0.7
+ * @date 2023-11-30
  * 
  * @copyright Copyright (c) 2023
 */
@@ -169,7 +169,11 @@ void setup(){
           
             if (DEBUG)
             {
-                Serial.println("OUT_FET%d, config to output", FET_assignment_index - 1);
+              Serial.print("Batt_Case");
+              Serial.print(battery_case_index);
+              Serial.print(", OUT_FET");
+              Serial.print(FET_assignment_index);
+              Serial.print(", configured to output");
             }
             //set the FETS array in the structure to the 2d element of the FET_assignments array
             batts_array[battery_case_index].FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
@@ -203,14 +207,19 @@ void loop(void){
       // UI for the user to either activate a battery case or print the battery measurements
         
       char CMD;
-      Serial.print("Enter a command or type h for list: ");
-      Serial.read(CMD);
+      Serial.print("\nEnter a command or type h for list: ");
+
+      while(Serial.available() == 0) {
+          // Empty loop, wait for user to enter data on the serial line
+      }
+      // Read the user entered string into the CMD variable
+      CMD = Serial.read();
 
       switch (CMD){
         
         case 'h':
           // "help" case 'h' will print a list of possible commands to type
-          Serial.print("h :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
+          Serial.print("\nh :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
           // any other command will reprompt the user
           break;
         
@@ -218,29 +227,35 @@ void loop(void){
           // 'b' will call the battery case to activate
           char batt_case_num;
           // prompt the user for a battery case
-          Serial.print("Battery Cases:\n0\n1\n2\n3\n4\nD - FET Disconnect\nEnter case number: ");
-          Serial.read(batt_case_num);
+          Serial.print("\nBattery Cases:\n0\n1\n2\n3\n4\nD - FET Disconnect\nEnter case number: ");
+          
+          while(Serial.available() == 0) {
+          // Empty loop, wait for user to enter data on the serial line
+          }
+          batt_case_num = Serial.read();
           switch(batt_case_num){
               case '0':
-                  BATT_CASE_0();  
+                  BATT_CASE_SWITCH(0);  
                   break;
               case '1':
-                  BATT_CASE_1();
+                  BATT_CASE_SWITCH(1);
                   break;
               case '2':
-                  BATT_CASE_2();
+                  BATT_CASE_SWITCH(2);
                   break;
               case '3':
-                  BATT_CASE_3();
+                  BATT_CASE_SWITCH(3);
                   break;
               case '4':
-                  BATT_CASE_4();
+                  BATT_CASE_SWITCH(4);
                   break;
               case 'D':
                   FULL_FET_DISCONNECT();
                   break;
               default:
-                  Serial.print("ERROR: invalid case number");
+                  Serial.print("\nCommand Entered: ");
+                  Serial.print(batt_case_num);
+                  Serial.print("\nERROR: invalid case number\n");
           }
           break;
 
@@ -254,7 +269,7 @@ void loop(void){
           break;
         
         default:
-          Serial.print("ERROR: Invalid Command");
+          Serial.print("\nERROR: Invalid Command");
       }
     }
   
@@ -314,7 +329,7 @@ void loop(void){
 
 //Default array case, everything low
 void FULL_FET_DISCONNECT(){
-    output_fet_array[FET_ARRAY_LEN] = {
+    int output_fet_array[FET_ARRAY_LEN] = {
         OUT_FET1, OUT_FET2, OUT_FET3, 
         OUT_FET4, OUT_FET5, OUT_FET6, 
         OUT_FET7, OUT_FET8, OUT_FET9, 
@@ -325,9 +340,9 @@ void FULL_FET_DISCONNECT(){
          Serial.println("FETs disconnected");
     }
 
-    for (int i = 0; i < NUM; i++)
+    for (int i = 0; i < FET_ARRAY_LEN; i++)
     {
-        digitalWrtite(output_fet_array[i], LOW)
+        digitalWrite(output_fet_array[i], LOW);
     }
     
     delay(MOSFET_OFF_DELAY);
@@ -345,7 +360,7 @@ void BATT_CASE_SWITCH(int batt_case){
 
     for (int i = 0; i < NUM_FETS; i++)
     {
-        digitalWrite(batts_array[batt_case].FETS[i], HIGH)
+        digitalWrite(batts_array[batt_case].FETS[i], HIGH);
     }
     
     delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
