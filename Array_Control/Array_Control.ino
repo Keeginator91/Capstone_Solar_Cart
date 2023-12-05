@@ -2,8 +2,8 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.7
- * @date 2023-11-30
+ * @version 0.8
+ * @date 2023-12-04
  * 
  * @copyright Copyright (c) 2023
 */
@@ -194,125 +194,125 @@ void setup(){
 /**
  * @brief Run through the battery cases to make sure everything works properly.
  * the FULL_FET_DISCONNECT and delay in between the case advance, is to reset the relay positions 
- * because the cases only set the relays high.
+ * because the cases only set the relays high. Also included is a DEBUG function that allows for 
+ * user serial input (keyboard). The terminal UI supplies a list of commands and their respective descriptions
+ * the user can use to have the controller enter a specified state. 
  */
 
 
 void loop(void){
     // Manual Debug Control
     if (DEBUG){
-      // print a list of commands after typing "help"
-      // must call each function in an infinite loop and return
+        // print a list of commands after typing "help"
+        // must call each function in an infinite loop and return
 
-      // UI for the user to either activate a battery case or print the battery measurements
+        // UI for the user to either activate a battery case or print the battery measurements
         
-      char CMD;
-      Serial.print("\nEnter a command or type h for list: ");
+        char CMD;
+        Serial.print("\nEnter a command or type h for list: ");
 
-      while(Serial.available() == 0) {
-          // Empty loop, wait for user to enter data on the serial line
-      }
-      // Read the user entered string into the CMD variable
-      CMD = Serial.read();
+        while(Serial.available() == 0) {
+            // Empty loop, wait for user to enter data on the serial line
+        }
+        // Read the user entered string into the CMD variable
+        CMD = Serial.read();
 
-      switch (CMD){
-        
-        case 'h':
-          // "help" case 'h' will print a list of possible commands to type
-          Serial.print("\nh :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
-          // any other command will reprompt the user
-          break;
-        
-        case 'b':
-          // 'b' will call the battery case to activate
-          char batt_case_num;
-          // prompt the user for a battery case
-          Serial.print("\nBattery Cases:\n0\n1\n2\n3\n4\nD - FET Disconnect\nEnter case number: ");
-          
-          while(Serial.available() == 0) {
-          // Empty loop, wait for user to enter data on the serial line
-          }
-          batt_case_num = Serial.read();
-          switch(batt_case_num){
-              case '0':
-                  BATT_CASE_SWITCH(0);  
-                  break;
-              case '1':
-                  BATT_CASE_SWITCH(1);
-                  break;
-              case '2':
-                  BATT_CASE_SWITCH(2);
-                  break;
-              case '3':
-                  BATT_CASE_SWITCH(3);
-                  break;
-              case '4':
-                  BATT_CASE_SWITCH(4);
-                  break;
-              case 'D':
-                  FULL_FET_DISCONNECT();
-                  break;
-              default:
-                  Serial.print("\nCommand Entered: ");
-                  Serial.print(batt_case_num);
-                  Serial.print("\nERROR: invalid case number\n");
-          }
-          break;
-
-        case 'm': 
-          array_loaded_voltages();
+        switch (CMD){
+            case 'h':
+                // "help" case 'h' will print a list of possible commands to type
+                Serial.print("\nh :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
+                // any other command will reprompt the user
+                break;
             
-          // pull up a list of the battery measurements in the array
-          for (int i = 0; i < NUM_BATTS; i++){
-              Serial.println(batts_array[i].voltage_mes);
-          }
-          break;
-        
-        default:
-          Serial.print("\nERROR: Invalid Command");
-      }
-    }
+            case 'b':
+                // 'b' will call the battery case to activate
+                char batt_case_num;
+                // prompt the user for a battery case
+                Serial.print("\nBattery Cases:\n  0\n  1\n  2\n  3\n  4\n  D - FET Disconnect\nEnter case number: ");
+
+                while(Serial.available() == 0) {
+                // Empty loop, wait for user to enter data on the serial line
+                }
+                batt_case_num = Serial.read();
+
+                if (batt_case_num == '0' || batt_case_num == '1' || batt_case_num == '2' 
+                                            || batt_case_num == '3' || batt_case_num == '4' ) 
+                {
+                    BATT_CASE_SWITCH(batt_case_num);  
+
+                }
+
+                else if (batt_case_num == 'D')
+                {
+                    FULL_FET_DISCONNECT();
+                }
+
+                else{
+                    Serial.print("\nCommand Entered: ");
+                    Serial.print(batt_case_num);
+                    Serial.print("\nERROR: invalid case number\n");
+                }
+
+                break;
+
+            case 'm': 
+                array_loaded_voltages();
+                    
+                // pull up a list of the battery measurements in the array
+                for (int i = 0; i < NUM_BATTS; i++){
+                    Serial.println(batts_array[i].voltage_mes);
+                }
+                break;
+            
+            default:
+                Serial.print("\nERROR: Invalid Command");
+
+        }// end CMD switch 
+    }// end if DEBUG
   
+
     // Automatic MOSFET Control
     else {
-      array_loaded_voltages(); //perform an array measurement
+        array_loaded_voltages(); //perform an array measurement
 
-      // these limits are for loop comparison
-      float min = 100;    
-      float max = 0;     
+        // these limits are for loop comparison
+        float min = 100;    
+        float max = 0;     
 
-      // storing the values of our min and max indices
-      int max_batt_index = 0; 
-      int min_batt_index = 0;
+        // storing the values of our min and max indices
+        int max_batt_index = 0; 
+        int min_batt_index = 0;
 
-      //iterate over the battery array and find our min and max values and save respective indecies
-      for (int i = 0; i < NUM_BATTS; i++) {
-        
-        //we want to ingore the lower battery if it's already being charged.
-        if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
-            min_batt_index = i;
-            min = batts_array[i].voltage_mes;
+        //iterate over the battery array and find our min and max values and save respective indecies
+        for (int i = 0; i < NUM_BATTS; i++) {
+            
+            //we want to ingore the lower battery if it's already being charged.
+            if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
+                min_batt_index = i;
+                min = batts_array[i].voltage_mes;
+            }
+            //We only care if a battery is at it's max voltage if its charging. We'll probably run into issues here with HW -KS
+            else if (batts_array[i].voltage_mes > max && batts_array[i].is_charging) {
+                max_batt_index = i; 
+                max = batts_array[i].voltage_mes;
+            }
         }
-        //We only care if a battery is at it's max voltage if its charging. We'll probably run into issues here with HW -KS
-        else if (batts_array[i].voltage_mes > max && batts_array[i].is_charging) {
-            max_batt_index = i; 
-            max = batts_array[i].voltage_mes;
+
+        //check for a maxed or dead battery and charge the dead one, or take the max battery off and charge the battery with the lowest voltage
+        if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
+            
+            FULL_FET_DISCONNECT(); // disengage all FETS 
+
+            //Use the min index to change the charging scheme to the lowest battery in the array
+                    //we'll do this by passing the min battery index through the case switch
+            BATT_CASE_SWITCH(min_batt_index);
         }
-      }
+        else {
+            BATT_CASE_SWTICH(0); //if all the batteries are evenly charged, then we'll just go to a default case so that nothing gets borked
+        }    
+    }//end else
 
-      //check for a maxed or dead battery and charge the dead one, or take the max battery off and charge the battery with the lowest voltage
-      if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
-        
-        FULL_FET_DISCONNECT(); // disengage all FETS 
 
-        //Use the min index to change the charging scheme to the lowest battery in the array
-                //we'll do this by passing the min battery index through the case switch
-        BATT_CASE_SWITCH(min_batt_index);
-      }
-      else {
-        BATT_CASE_SWTICH(0); //if all the batteries are evenly charged, then we'll just go to a default case so that nothing gets borked
-      }    
-    }
 } //end loop
 
 
