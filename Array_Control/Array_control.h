@@ -4,7 +4,7 @@
  * @brief This file contains function prototypes and 
  *    the battery structure for Battery_array_control
  * @version 0.6
- * @date 2023-12-10
+ * @date 2023-12-11
  * 
  * @copyright Copyright (c) 2023
  **/
@@ -21,7 +21,11 @@ typedef struct battery
 
 /** ISR function prototypes */
 void BUTTON0_ISR();
-
+void BUTTON1_ISR();
+void BUTTON2_ISR();
+void BUTTON3_ISR();
+void BUTTON4_ISR();
+void BUTTON5_ISR();
 
 int button_debounce(const int button_pin);
 

@@ -154,8 +154,13 @@ void setup(){
     {
         Serial.begin(19200);            //serial output for debugging
 
-        //Interrupt declarations
+        //Interrupt declarations for 
         attachInterrupt(digitalPinToInterrupt(BUTTON0), BUTTON0_ISR, RISING);   //ISR to go to battery case 0
+        attachInterrupt(digitalPinToInterrupt(BUTTON1), BUTTON1_ISR, RISING);   //ISR to go to battery case 1
+        attachInterrupt(digitalPinToInterrupt(BUTTON2), BUTTON2_ISR, RISING);   //ISR to go to battery case 2
+        attachInterrupt(digitalPinToInterrupt(BUTTON3), BUTTON3_ISR, RISING);   //ISR to go to battery case 3
+        attachInterrupt(digitalPinToInterrupt(BUTTON4), BUTTON4_ISR, RISING);   //ISR to go to battery case 4
+        attachInterrupt(digitalPinToInterrupt(BUTTON5), BUTTON5_ISR, RISING);   //ISR to go to battery case 5
     
     }
 
@@ -282,6 +287,61 @@ void BUTTON0_ISR(){
     if (button_state == HIGH)
     {
         BATT_CASE_SWTICH(0);
+    }
+}
+
+void BUTTON1_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON1);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        BATT_CASE_SWTICH(1);
+    }
+}
+
+void BUTTON2_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON2);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        BATT_CASE_SWTICH(2);
+    }
+}
+
+void BUTTON3_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON3);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        BATT_CASE_SWTICH(3);
+    }
+}
+
+void BUTTON4_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON4);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        BATT_CASE_SWTICH(4);
+    }
+}
+
+void BUTTON5_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON5);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        FULL_FET_DISCONNECT();
     }
 }
 
