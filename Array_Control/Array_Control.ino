@@ -160,8 +160,7 @@ void setup(){
         attachInterrupt(digitalPinToInterrupt(BUTTON2), BUTTON2_ISR, RISING);   //ISR to go to battery case 2
         attachInterrupt(digitalPinToInterrupt(BUTTON3), BUTTON3_ISR, RISING);   //ISR to go to battery case 3
         attachInterrupt(digitalPinToInterrupt(BUTTON4), BUTTON4_ISR, RISING);   //ISR to go to battery case 4
-        attachInterrupt(digitalPinToInterrupt(BUTTON5), BUTTON5_ISR, RISING);   //ISR to go to battery case 5
-    
+        attachInterrupt(digitalPinToInterrupt(BUTTON5), BUTTON5_ISR, RISING);   //ISR to go to FULL_FET_DISCONNECT()
     }
 
     //integer values reflect arduino mega pins
@@ -227,7 +226,6 @@ void loop(void){
             //endless wait while we manually use interrupts
                 //to switch between function
         }
-        
     }// end if DEBUG
   
 
@@ -282,7 +280,7 @@ void loop(void){
 void BUTTON0_ISR(){
     int button_state = LOW;
 
-    button_state = button_debounce(BUTTON0);   //run debouce function on button press
+    button_state = button_debounce(BUTTON0);   //run debounce function on button press
 
     if (button_state == HIGH)
     {
@@ -293,7 +291,7 @@ void BUTTON0_ISR(){
 void BUTTON1_ISR(){
     int button_state = LOW;
 
-    button_state = button_debounce(BUTTON1);   //run debouce function on button press
+    button_state = button_debounce(BUTTON1);   //run debounce function on button press
 
     if (button_state == HIGH)
     {
@@ -304,7 +302,7 @@ void BUTTON1_ISR(){
 void BUTTON2_ISR(){
     int button_state = LOW;
 
-    button_state = button_debounce(BUTTON2);   //run debouce function on button press
+    button_state = button_debounce(BUTTON2);   //run debounce function on button press
 
     if (button_state == HIGH)
     {
@@ -315,7 +313,7 @@ void BUTTON2_ISR(){
 void BUTTON3_ISR(){
     int button_state = LOW;
 
-    button_state = button_debounce(BUTTON3);   //run debouce function on button press
+    button_state = button_debounce(BUTTON3);   //run debounce function on button press
 
     if (button_state == HIGH)
     {
@@ -326,7 +324,7 @@ void BUTTON3_ISR(){
 void BUTTON4_ISR(){
     int button_state = LOW;
 
-    button_state = button_debounce(BUTTON4);   //run debouce function on button press
+    button_state = button_debounce(BUTTON4);   //run debounce function on button press
 
     if (button_state == HIGH)
     {

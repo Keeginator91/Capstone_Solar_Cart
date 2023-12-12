@@ -27,14 +27,15 @@ void BUTTON3_ISR();
 void BUTTON4_ISR();
 void BUTTON5_ISR();
 
-int button_debounce(const int button_pin);
-
-/** Functions are to set the output configuration of the array */
+/** Functions to set the output configuration of the array */
 void FULL_FET_DISCONNECT();
 void BATT_CASE_SWTICH(int batt_case); 
 
-//Measurement functions
+/** Measurement functions */
 void array_loaded_voltages();
 void array_unloaded_voltages();
+
+/** Tertiary functions */
+int button_debounce(const int button_pin);
 
 #endif //end Array_control_H
