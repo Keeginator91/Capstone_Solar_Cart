@@ -3,8 +3,8 @@
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes and 
  *    the battery structure for Battery_array_control
- * @version 0.5
- * @date 2023-11-22
+ * @version 0.6
+ * @date 2023-12-10
  * 
  * @copyright Copyright (c) 2023
  **/
@@ -19,6 +19,11 @@ typedef struct battery
    int   FETS[5];
 } battery;
 
+/** ISR function prototypes */
+void BUTTON0_ISR();
+
+
+int button_debounce(const int button_pin);
 
 /** Functions are to set the output configuration of the array */
 void FULL_FET_DISCONNECT();

@@ -2,8 +2,8 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.8
- * @date 2023-12-04
+ * @version 0.9
+ * @date 2023-12-11
  * 
  * @copyright Copyright (c) 2023
 */
@@ -11,6 +11,7 @@
 /* INCLUDED LIBRARIES*/
 #include <stdbool.h>
 #include <string.h>
+#include <avr/interrupt.h>
 
 
 /* LOCAL FILES*/
@@ -72,6 +73,15 @@ bool DEBUG = true;
 #define CHG_FET10 //paired with OUT_FET9
 */
 
+/* INTERRUPT BUTTON PIN ASSIGNMENTS */
+//      NAME       PIN#   DIGITAL PIN#
+#define BUTTON0     60      //30      //Calls battery case 0
+#define BUTTON1     59      //31      //Calls battery case 1
+#define BUTTON2     58      //32      //Calls battery case 2
+#define BUTTON3     57      //33      //Calls battery case 3
+#define BUTTON4     56      //34      //Calls battery case 4
+#define BUTTON5     55      //35      //Calls FULL_FET_DISCONNECT()
+
 /* OUTPUT FET PIN ASSIGNMENTS*/
             //current pin assignments are for arduino ATMega
 #define OUT_FET1   2
@@ -89,7 +99,6 @@ bool DEBUG = true;
 /**
  * @brief as per arduino mega header file, these
  * are the integer values for the respective ADC inputs
- * 
  */
 // ADC PIN DECLARATIONS
 #define ADC0 54  //Battery 1
@@ -138,12 +147,18 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
 
 void setup(){
     
+    sei();                          //enable interrupts
+
     // Establish serial port for debugging
     if (DEBUG)
     {
         Serial.begin(19200);            //serial output for debugging
+
+        //Interrupt declarations
+        attachInterrupt(digitalPinToInterrupt(BUTTON0), BUTTON0_ISR, RISING);   //ISR to go to battery case 0
+    
     }
-  
+
     //integer values reflect arduino mega pins
     int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
 
@@ -166,22 +181,21 @@ void setup(){
         for (int FET_assignment_index = 0; FET_assignment_index < NUM_FETS ; FET_assignment_index++)
         {
             pinMode(FET_assignment_index, OUTPUT);  //might as well set the pins to outputs while we are iterating
-          
+        
             if (DEBUG)
             {
-              Serial.print("Batt_Case");
-              Serial.print(battery_case_index);
-              Serial.print(", OUT_FET");
-              Serial.print(FET_assignment_index);
-              Serial.print(", configured to output");
+            Serial.print("Batt_Case");
+            Serial.print(battery_case_index);
+            Serial.print(", OUT_FET");
+            Serial.print(FET_assignment_index);
+            Serial.print(", configured to output");
             }
             //set the FETS array in the structure to the 2d element of the FET_assignments array
             batts_array[battery_case_index].FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
         }
     }
 
-   FULL_FET_DISCONNECT(); //initialize to full array disconnect
-
+    FULL_FET_DISCONNECT(); //initialize to full array disconnect
 } //end setup
 
 
@@ -203,71 +217,12 @@ void setup(){
 void loop(void){
     // Manual Debug Control
     if (DEBUG){
-        // print a list of commands after typing "help"
-        // must call each function in an infinite loop and return
-
-        // UI for the user to either activate a battery case or print the battery measurements
-        
-        char CMD;
-        Serial.print("\nEnter a command or type h for list: ");
-
-        while(Serial.available() == 0) {
-            // Empty loop, wait for user to enter data on the serial line
+        while (1)
+        {
+            //endless wait while we manually use interrupts
+                //to switch between function
         }
-        // Read the user entered string into the CMD variable
-        CMD = Serial.read();
-
-        switch (CMD){
-            case 'h':
-                // "help" case 'h' will print a list of possible commands to type
-                Serial.print("\nh :   print this list\nb  :   to select specific battery case\nm  :   to print battery measurements");
-                // any other command will reprompt the user
-                break;
-            
-            case 'b':
-                // 'b' will call the battery case to activate
-                char batt_case_num;
-                // prompt the user for a battery case
-                Serial.print("\nBattery Cases:\n  0\n  1\n  2\n  3\n  4\n  D - FET Disconnect\nEnter case number: ");
-
-                while(Serial.available() == 0) {
-                // Empty loop, wait for user to enter data on the serial line
-                }
-                batt_case_num = Serial.read();
-
-                if (batt_case_num == '0' || batt_case_num == '1' || batt_case_num == '2' 
-                                            || batt_case_num == '3' || batt_case_num == '4' ) 
-                {
-                    BATT_CASE_SWITCH(batt_case_num);  
-
-                }
-
-                else if (batt_case_num == 'D')
-                {
-                    FULL_FET_DISCONNECT();
-                }
-
-                else{
-                    Serial.print("\nCommand Entered: ");
-                    Serial.print(batt_case_num);
-                    Serial.print("\nERROR: invalid case number\n");
-                }
-
-                break;
-
-            case 'm': 
-                array_loaded_voltages();
-                    
-                // pull up a list of the battery measurements in the array
-                for (int i = 0; i < NUM_BATTS; i++){
-                    Serial.println(batts_array[i].voltage_mes);
-                }
-                break;
-            
-            default:
-                Serial.print("\nERROR: Invalid Command");
-
-        }// end CMD switch 
+        
     }// end if DEBUG
   
 
@@ -319,6 +274,16 @@ void loop(void){
 /**********************
 * INTERRUPT FUNCTIONS *
 **********************/
+void BUTTON0_ISR(){
+    int button_state = LOW;
+
+    button_state = button_debounce(BUTTON0);   //run debouce function on button press
+
+    if (button_state == HIGH)
+    {
+        BATT_CASE_SWTICH(0);
+    }
+}
 
 /****************************
 * BATTERY CASE DECLARATIONS *
@@ -390,5 +355,48 @@ void array_unloaded_voltages(){
      * since this function just has added features compared to that function 
      */
     array_loaded_voltages();
+}
+
+int button_debounce(const int button_pin){
+    //source: https://docs.arduino.cc/built-in-examples/digital/Debounce
+
+
+    // Variables will change:
+    int ledState = HIGH;        // the current state of the output pin
+    int buttonState;            // the current reading from the input pin
+    int lastButtonState = LOW;  // the previous reading from the input pin
+
+    // the following variables are unsigned longs because the time, measured in
+    // milliseconds, will quickly become a bigger number than can be stored in an int.
+    unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+    unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+
+    // read the state of the switch into a local variable:
+    int reading = digitalRead(button_pin);
+
+    // check to see if you just pressed the button
+    // (i.e. the input went from LOW to HIGH), and you've waited long enough
+    // since the last press to ignore any noise:
+
+    // If the switch changed, due to noise or pressing:
+    if (reading != lastButtonState) {
+        // reset the debouncing timer
+        lastDebounceTime = millis();
+    }
+
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+        // whatever the reading is at, it's been there for longer than the debounce
+        // delay, so take it as the actual current state:
+
+        // if the button state has changed:
+        if (reading != buttonState) {
+        buttonState = reading;
+
+        // only toggle the LED if the new button state is HIGH
+        if (buttonState == HIGH) {
+            return buttonState;
+        }
+        }
+    }
 }
 
