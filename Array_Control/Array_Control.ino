@@ -372,6 +372,10 @@ void FULL_FET_DISCONNECT(){
 
 } //end FULL_FET_DISCONNECT
 
+
+inline void BATT_CASE_SWTICH(int batt_case) {
+    BATT_CASE_SWTICH(batt_case);
+}
 /***
  * This function handles setting the battery bypass
  * MOSFETS high. It does this by intaking a battery case number, then 
