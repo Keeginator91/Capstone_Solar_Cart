@@ -36,6 +36,6 @@ void array_loaded_voltages();
 void array_unloaded_voltages();
 
 /** Tertiary functions */
-int button_debounce(const int button_pin);
+bool button_debounce(const int button_pin);
 
 #endif //end Array_control_H

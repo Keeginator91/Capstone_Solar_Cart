@@ -24,11 +24,11 @@ bool DEBUG = true;
 
 #define NUM_BATTS 5  //Number of batteries in the array
 #define NUM_FETS  5  //Number of FETS used to bypass a battery
-#define FET_ARRAY_LEN 10 //total number of FETS used
+#define FET_ARRAY_LEN 11 //total number of FETS used
 
 //adc conversion constants
-#define ADC_RESOLUTION 1023 //max value adc will return
-#define REF_VOLT          5 //reference voltage value
+#define ADC_RESOLUTION 1023.0 //max value adc will return
+#define REF_VOLT          5.0 //reference voltage value
 #define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
 
 //Voltage divider network conversion constants
@@ -74,33 +74,34 @@ bool DEBUG = true;
 */
 
 /* INTERRUPT BUTTON PIN ASSIGNMENTS */
-//      NAME       PIN#   DIGITAL PIN#
-#define BUTTON0     60      //30      //Calls battery case 0
-#define BUTTON1     59      //31      //Calls battery case 1
-#define BUTTON2     58      //32      //Calls battery case 2
-#define BUTTON3     57      //33      //Calls battery case 3
-#define BUTTON4     56      //34      //Calls battery case 4
-#define BUTTON5     55      //35      //Calls FULL_FET_DISCONNECT()
+//      NAME       DIGITAL PIN #    
+#define BUTTON0     30 //60      //Calls battery case 0
+#define BUTTON1     21 //31 //59      //Calls battery case 1
+#define BUTTON2     32 //58      //Calls battery case 2
+#define BUTTON3     33 //57      //Calls battery case 3
+#define BUTTON4     34 //56      //Calls battery case 4
+#define BUTTON5     35 //55      //Calls FULL_FET_DISCONNECT()
 
 /* OUTPUT FET PIN ASSIGNMENTS*/
             //current pin assignments are for arduino ATMega
-#define OUT_FET1   2
-#define OUT_FET2   3
-#define OUT_FET3   4
-#define OUT_FET4   5
-#define OUT_FET5   6
-#define OUT_FET6   7
-#define OUT_FET7   8
-#define OUT_FET8   9
-#define OUT_FET9  10
-#define OUT_FET10 11
+#define OUT_FET11   2
+#define OUT_FET12   3
+#define OUT_FET13   4
+#define OUT_FET14   5
+#define OUT_FET15   6
+#define OUT_FET16   7
+#define OUT_FET17   8
+#define OUT_FET18   9
+#define OUT_FET19  10
+#define OUT_FET20  11
+#define OUT_FET21  12
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
 /**
  * @brief as per arduino mega header file, these
  * are the integer values for the respective ADC inputs
  */
-// ADC PIN DECLARATIONS
+// ADC PIN DECLARATIONS (using pin numbers from ATMega2560)
 #define ADC0 54  //Battery 1
 #define ADC1 55  //Battery 2
 #define ADC2 56  //Battery 3
@@ -147,38 +148,31 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
 
 void setup(){
     
-    sei();                          //enable interrupts
-
     // Establish serial port for debugging
     if (DEBUG)
     {
         Serial.begin(19200);            //serial output for debugging
-
-        //Interrupt declarations for 
-        attachInterrupt(digitalPinToInterrupt(BUTTON0), BUTTON0_ISR, RISING);   //ISR to go to battery case 0
-        attachInterrupt(digitalPinToInterrupt(BUTTON1), BUTTON1_ISR, RISING);   //ISR to go to battery case 1
-        attachInterrupt(digitalPinToInterrupt(BUTTON2), BUTTON2_ISR, RISING);   //ISR to go to battery case 2
-        attachInterrupt(digitalPinToInterrupt(BUTTON3), BUTTON3_ISR, RISING);   //ISR to go to battery case 3
-        attachInterrupt(digitalPinToInterrupt(BUTTON4), BUTTON4_ISR, RISING);   //ISR to go to battery case 4
-        attachInterrupt(digitalPinToInterrupt(BUTTON5), BUTTON5_ISR, RISING);   //ISR to go to FULL_FET_DISCONNECT()
     }
 
     //integer values reflect arduino mega pins
-    int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
+    int adc_pins[5] = {A0, A1, A2, A3, A4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
 
     //Fet assignment array. The index of the array is the battery case. ie, [0][0] is case 0, [1][0] is case 1
     int FET_assignments[NUM_BATTS][NUM_FETS] = { 
-        { OUT_FET2, OUT_FET5, OUT_FET7, OUT_FET9, OUT_FET10 }, 
-        { OUT_FET1, OUT_FET4, OUT_FET7, OUT_FET9, OUT_FET10 },
-        { OUT_FET1, OUT_FET3, OUT_FET6, OUT_FET9, OUT_FET10 },
-        { OUT_FET1, OUT_FET3, OUT_FET5, OUT_FET8, OUT_FET10 },
-        { OUT_FET1, OUT_FET3, OUT_FET5, OUT_FET7, OUT_FET9  } };
+        { OUT_FET12, OUT_FET15, OUT_FET17, OUT_FET19, OUT_FET21 }, 
+        { OUT_FET11, OUT_FET14, OUT_FET17, OUT_FET19, OUT_FET21 },
+        { OUT_FET11, OUT_FET13, OUT_FET16, OUT_FET19, OUT_FET21 },
+        { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET18, OUT_FET21 },
+        { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET17, OUT_FET20 } };
 
     //iterate over the array to perform pin assignments and set charging flags low
     for (int battery_case_index = 0; battery_case_index < NUM_BATTS; battery_case_index++)
     {
         //Since we are already iterating over the array, lets initialize the adc pin and the is_charging flag in the structure
         batts_array[battery_case_index].adc_pin_assignment = adc_pins[battery_case_index];
+        Serial.print("Assigned ADC Pin: ");
+        Serial.println(batts_array[battery_case_index].adc_pin_assignment);
+
         batts_array[battery_case_index].is_charging        = false;
 
         //itertate in 2d to assign FET config to each battery
@@ -188,11 +182,11 @@ void setup(){
         
             if (DEBUG)
             {
-            Serial.print("Batt_Case");
+            Serial.print("Batt_Case ");
             Serial.print(battery_case_index);
-            Serial.print(", OUT_FET");
+            Serial.print(", OUT_FET ");
             Serial.print(FET_assignment_index);
-            Serial.print(", configured to output");
+            Serial.println(", configured to output");
             }
             //set the FETS array in the structure to the 2d element of the FET_assignments array
             batts_array[battery_case_index].FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
@@ -221,6 +215,15 @@ void setup(){
 void loop(void){
     // Manual Debug Control
     if (DEBUG){
+
+      // Manually change the input to BATT_CASE_SWITCH() to run through each case:
+      Serial.println("Loop Debug");
+      BATT_CASE_SWITCH(0);
+
+      array_loaded_voltages();
+
+
+
         while (1)
         {
             //endless wait while we manually use interrupts
@@ -273,76 +276,6 @@ void loop(void){
 
 } //end loop
 
-
-/**********************
-* INTERRUPT FUNCTIONS *
-**********************/
-void BUTTON0_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON0);   //run debounce function on button press
-
-    if (button_state == HIGH)
-    {
-        BATT_CASE_SWTICH(0);
-    }
-}
-
-void BUTTON1_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON1);   //run debounce function on button press
-
-    if (button_state == HIGH)
-    {
-        BATT_CASE_SWTICH(1);
-    }
-}
-
-void BUTTON2_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON2);   //run debounce function on button press
-
-    if (button_state == HIGH)
-    {
-        BATT_CASE_SWTICH(2);
-    }
-}
-
-void BUTTON3_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON3);   //run debounce function on button press
-
-    if (button_state == HIGH)
-    {
-        BATT_CASE_SWTICH(3);
-    }
-}
-
-void BUTTON4_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON4);   //run debounce function on button press
-
-    if (button_state == HIGH)
-    {
-        BATT_CASE_SWTICH(4);
-    }
-}
-
-void BUTTON5_ISR(){
-    int button_state = LOW;
-
-    button_state = button_debounce(BUTTON5);   //run debouce function on button press
-
-    if (button_state == HIGH)
-    {
-        FULL_FET_DISCONNECT();
-    }
-}
-
 /****************************
 * BATTERY CASE DECLARATIONS *
 ****************************/
@@ -353,10 +286,10 @@ void BUTTON5_ISR(){
 //Default array case, everything low
 void FULL_FET_DISCONNECT(){
     int output_fet_array[FET_ARRAY_LEN] = {
-        OUT_FET1, OUT_FET2, OUT_FET3, 
-        OUT_FET4, OUT_FET5, OUT_FET6, 
-        OUT_FET7, OUT_FET8, OUT_FET9, 
-        OUT_FET10 };
+        OUT_FET11, OUT_FET12, OUT_FET13, 
+        OUT_FET14, OUT_FET15, OUT_FET16, 
+        OUT_FET17, OUT_FET18, OUT_FET19, 
+        OUT_FET20, OUT_FET21 };
 
     if (DEBUG)
     {
@@ -393,6 +326,10 @@ void BATT_CASE_SWITCH(int batt_case){
     delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
     batts_array[batt_case].is_charging = true; //raise is_charging flag specific case
 
+    if(DEBUG){
+      Serial.println("Case switched");
+    }
+
 } //end BATT_CASE_0
 
 
@@ -404,7 +341,17 @@ void array_loaded_voltages(){
 
     for (int i = 0; i < NUM_BATTS; i++)
     {
-        batts_array[i].voltage_mes = ( analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
+        batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT);
+        //batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
+
+        if(DEBUG){
+          Serial.print("Raw ADC Value: ");
+          Serial.println(analogRead(batts_array[i].adc_pin_assignment));
+          Serial.print("Battery Index: ");
+          Serial.print(i);
+          Serial.print(" , Measurement: ");
+          Serial.println(batts_array[i].voltage_mes);
+        }
     }
 }
 
@@ -417,48 +364,5 @@ void array_unloaded_voltages(){
      * since this function just has added features compared to that function 
      */
     array_loaded_voltages();
-}
-
-int button_debounce(const int button_pin){
-    //source: https://docs.arduino.cc/built-in-examples/digital/Debounce
-
-
-    // Variables will change:
-    int ledState = HIGH;        // the current state of the output pin
-    int buttonState;            // the current reading from the input pin
-    int lastButtonState = LOW;  // the previous reading from the input pin
-
-    // the following variables are unsigned longs because the time, measured in
-    // milliseconds, will quickly become a bigger number than can be stored in an int.
-    unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-    unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
-
-    // read the state of the switch into a local variable:
-    int reading = digitalRead(button_pin);
-
-    // check to see if you just pressed the button
-    // (i.e. the input went from LOW to HIGH), and you've waited long enough
-    // since the last press to ignore any noise:
-
-    // If the switch changed, due to noise or pressing:
-    if (reading != lastButtonState) {
-        // reset the debouncing timer
-        lastDebounceTime = millis();
-    }
-
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state:
-
-        // if the button state has changed:
-        if (reading != buttonState) {
-        buttonState = reading;
-
-        // only toggle the LED if the new button state is HIGH
-        if (buttonState == HIGH) {
-            return buttonState;
-        }
-        }
-    }
 }
 
