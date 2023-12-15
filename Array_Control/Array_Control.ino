@@ -218,17 +218,13 @@ void loop(void){
 
       // Manually change the input to BATT_CASE_SWITCH() to run through each case:
       Serial.println("Loop Debug");
-      BATT_CASE_SWITCH(0);
-
-      array_loaded_voltages();
-
-
-
-        while (1)
-        {
-            //endless wait while we manually use interrupts
-                //to switch between function
-        }
+      
+      // Loop through each battery switch case:
+      for(int index = 0; index < NUM_BATTS; index++){
+        BATT_CASE_SWITCH(index);
+        array_loaded_voltages();
+        delay(2000);
+      }
     }// end if DEBUG
   
 
@@ -341,16 +337,23 @@ void array_loaded_voltages(){
 
     for (int i = 0; i < NUM_BATTS; i++)
     {
-        batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT);
-        //batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
 
         if(DEBUG){
+          // Compute the voltage from the ADC output:
+          batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT);
+
+          // Print the raw ADC value and the converted analog voltage:
           Serial.print("Raw ADC Value: ");
           Serial.println(analogRead(batts_array[i].adc_pin_assignment));
           Serial.print("Battery Index: ");
           Serial.print(i);
           Serial.print(" , Measurement: ");
           Serial.println(batts_array[i].voltage_mes);
+        }
+
+        else{
+          // Apply scale factor from differential voltage amplifiers:
+          batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
         }
     }
 }
