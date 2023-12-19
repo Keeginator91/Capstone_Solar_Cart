@@ -2,7 +2,7 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.10
+ * @version 0.11
  * @date 2023-12-19
  * 
  * @copyright Copyright (c) 2023
@@ -19,31 +19,6 @@
  *************/
 bool DEBUG = true;
 
-#define NUM_BATTS 5  //Number of batteries in the array
-#define NUM_FETS  5  //Number of FETS used per a battery
-#define NUM_CHG_FETS  10 //total number of charging fets   
-#define NUM_OUT_FETS  11 //total number of output FETS
-
-//adc conversion constants
-#define ADC_RESOLUTION 1023.0f //max value adc will return
-#define REF_VOLT          5.0f //reference voltage value
-#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
-
-//Voltage divider network conversion constants
-#define R1_VAL 100000.0f //100K ohm for R1
-#define R2_VAL  33000.0f //33K ohm for R2
-#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
-
-//Battery measurement constants
-#define BATT_MAX_VOLTS   0
-#define BATT_FLOOR_VOLTS 0
-#define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
-
-//MOSFET switching times (seconds)
-#define MOSFET_TURN_ON   0.000000021f 
-#define MOSFET_RISE_TIME 0.000000120f 
-#define MOSFET_TURN_OFF  0.000000180f 
-#define MOSFET_FALL_TIME 0.000000115f
 #define MOSFET_ON_DELAY  (MOSFET_TURN_ON  + MOSFET_RISE_TIME)
 #define MOSFET_OFF_DELAY (MOSFET_TURN_OFF + MOSFET_FALL_TIME)
 
@@ -142,7 +117,7 @@ const int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4};
 
 /** GLOBAL OUTPUT FET ASSIGNMENT ARRAY*/
     //Fet assignment array. The index of the array is the battery case. ie, [0][0] is case 0, [1][0] is case 1
-const int FET_assignments[NUM_BATTS][NUM_FETS] = { 
+const int FET_assignments[NUM_BATTS][NUM_OUT_FETS_PER_BATT] = { 
     { OUT_FET12, OUT_FET15, OUT_FET17, OUT_FET19, OUT_FET21 }, 
     { OUT_FET11, OUT_FET14, OUT_FET17, OUT_FET19, OUT_FET21 },
     { OUT_FET11, OUT_FET13, OUT_FET16, OUT_FET19, OUT_FET21 },
@@ -322,7 +297,7 @@ void BATT_CASE_SWITCH(int batt_case){
 
     FULL_FET_DISCONNECT();
 
-    for (int i = 0; i < NUM_FETS; i++)
+    for (int i = 0; i < NUM_OUT_FETS_PER_BATT; i++)
     {
         digitalWrite(batts_array[batt_case].OUT_FETS[i], HIGH);
     }
@@ -387,7 +362,7 @@ void assign_output_fets(){
         batts_array[battery_case_index].is_charging = false;
 
         //itertate in y of FET_assignments to assign FET config to each battery
-        for (int FET_assignment_index = 0; FET_assignment_index < NUM_FETS ; FET_assignment_index++)
+        for (int FET_assignment_index = 0; FET_assignment_index < NUM_OUT_FETS_PER_BATT ; FET_assignment_index++)
         {
             pinMode(FET_assignments[battery_case_index][FET_assignment_index], OUTPUT);  //a little clunky, but beats having another for loop 
         

@@ -3,13 +3,40 @@
  * @author Keegan Smith (keeginator42@gmail.com)
  * @brief This file contains function prototypes and 
  *    the battery structure for Battery_array_control
- * @version 0.7
+ * @version 0.8
  * @date 2023-12-19
  * 
  * @copyright Copyright (c) 2023
  **/
 
 #ifndef Array_control_H
+
+#define NUM_BATTS 5  //Number of batteries in the array
+#define NUM_OUT_FETS_PER_BATT  5  //Number of output FETS used per a battery
+#define NUM_CHG_FETS_PER_BATT  2  //Number of charging FETS used per battery
+#define NUM_CHG_FETS  10 //total number of charging fets   
+#define NUM_OUT_FETS  11 //total number of output FETS
+
+//adc conversion constants
+#define ADC_RESOLUTION 1023.0f //max value adc will return
+#define REF_VOLT          5.0f //reference voltage value
+#define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
+
+//Voltage divider network conversion constants
+#define R1_VAL 100000.0f //100K ohm for R1
+#define R2_VAL  33000.0f //33K ohm for R2
+#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+
+//Battery measurement constants
+#define BATT_MAX_VOLTS   0
+#define BATT_FLOOR_VOLTS 0
+#define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
+
+//MOSFET switching times (seconds)
+#define MOSFET_TURN_ON   0.000000021f 
+#define MOSFET_RISE_TIME 0.000000120f 
+#define MOSFET_TURN_OFF  0.000000180f 
+#define MOSFET_FALL_TIME 0.000000115f
 
 /***    PCB pin label to arduino pin id *****/
 #define U09PD2  2
@@ -48,8 +75,8 @@ typedef struct battery
    float voltage_mes;
    bool  is_charging;
    int   adc_pin_assignment;
-   int   OUT_FETS[5];
-   int   CHARGE_FETS[2];
+   int   OUT_FETS[NUM_OUT_FETS_PER_BATT];
+   int   CHARGE_FETS[NUM_CHG_FETS_PER_BATT];
 } battery;
 
 /** Tertiary setup functioln */
