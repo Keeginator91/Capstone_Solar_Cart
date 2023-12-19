@@ -125,24 +125,24 @@ FETs 11-21 are output FET pin assignments 2-11
 */
 
 /**GLOBAL PIN ARRAYS*/
-static int output_fet_array[FET_ARRAY_LEN] = {
+const int output_fet_array[FET_ARRAY_LEN] = {
     OUT_FET11, OUT_FET12, OUT_FET13, 
     OUT_FET14, OUT_FET15, OUT_FET16, 
     OUT_FET17, OUT_FET18, OUT_FET19, 
     OUT_FET20, OUT_FET21 
 };
 
-static int charging_fet_array[NUM_CHG_FETS] = {
+const int charging_fet_array[NUM_CHG_FETS] = {
     CHG_FET1, CHG_FET2, CHG_FET3, CHG_FET4,
     CHG_FET5, CHG_FET6, CHG_FET7, CHG_FET8, 
     CHG_FET9, CHG_FET10
 };
 
-static int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4};
+const int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4};
 
 /** GLOBAL OUTPUT FET ASSIGNMENT ARRAY*/
     //Fet assignment array. The index of the array is the battery case. ie, [0][0] is case 0, [1][0] is case 1
-static int FET_assignments[NUM_BATTS][NUM_FETS] = { 
+const int FET_assignments[NUM_BATTS][NUM_FETS] = { 
     { OUT_FET12, OUT_FET15, OUT_FET17, OUT_FET19, OUT_FET21 }, 
     { OUT_FET11, OUT_FET14, OUT_FET17, OUT_FET19, OUT_FET21 },
     { OUT_FET11, OUT_FET13, OUT_FET16, OUT_FET19, OUT_FET21 },
