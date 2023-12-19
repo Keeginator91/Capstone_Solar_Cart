@@ -22,7 +22,7 @@ bool DEBUG = true;
 #define NUM_BATTS 5  //Number of batteries in the array
 #define NUM_FETS  5  //Number of FETS used per a battery
 #define NUM_CHG_FETS  10 //total number of charging fets   
-#define FET_ARRAY_LEN 11 //total number of output FETS
+#define NUM_OUT_FETS  11 //total number of output FETS
 
 //adc conversion constants
 #define ADC_RESOLUTION 1023.0f //max value adc will return
@@ -125,7 +125,7 @@ FETs 11-21 are output FET pin assignments 2-11
 */
 
 /**GLOBAL PIN ARRAYS*/
-const int output_fet_array[FET_ARRAY_LEN] = {
+const int output_fet_array[NUM_OUT_FETS] = {
     OUT_FET11, OUT_FET12, OUT_FET13, 
     OUT_FET14, OUT_FET15, OUT_FET16, 
     OUT_FET17, OUT_FET18, OUT_FET19, 
@@ -300,7 +300,7 @@ void FULL_FET_DISCONNECT(){
          Serial.println("FETs disconnected");
     }
 
-    for (int i = 0; i < FET_ARRAY_LEN; i++)
+    for (int i = 0; i < NUM_OUT_FETS; i++)
     {
         digitalWrite(output_fet_array[i], LOW);
     }

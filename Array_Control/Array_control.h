@@ -43,7 +43,6 @@
 #define U09PD30 30
 
 
-
 typedef struct battery
 {
    float voltage_mes;
