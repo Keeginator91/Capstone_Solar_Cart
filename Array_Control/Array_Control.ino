@@ -2,17 +2,14 @@
  * @file Array_Control.c
  * @author Keegan Smith (keeginator42@gmail.com), Matthew DeSantis, Thomas Cecelya
  * @brief This file contains the main function to control and maintain the battery array
- * @version 0.9
- * @date 2023-12-11
+ * @version 0.10
+ * @date 2023-12-19
  * 
  * @copyright Copyright (c) 2023
 */
 
 /* INCLUDED LIBRARIES*/
 #include <stdbool.h>
-#include <string.h>
-#include <avr/interrupt.h>
-
 
 /* LOCAL FILES*/
 #include "Array_control.h"
@@ -23,17 +20,18 @@
 bool DEBUG = true;
 
 #define NUM_BATTS 5  //Number of batteries in the array
-#define NUM_FETS  5  //Number of FETS used to bypass a battery
-#define FET_ARRAY_LEN 11 //total number of FETS used
+#define NUM_FETS  5  //Number of FETS used per a battery
+#define NUM_CHG_FETS  10 //total number of charging fets   
+#define FET_ARRAY_LEN 11 //total number of output FETS
 
 //adc conversion constants
-#define ADC_RESOLUTION 1023.0 //max value adc will return
-#define REF_VOLT          5.0 //reference voltage value
+#define ADC_RESOLUTION 1023.0f //max value adc will return
+#define REF_VOLT          5.0f //reference voltage value
 #define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
 
 //Voltage divider network conversion constants
-#define R1_VAL 100000 //100K ohm for R1
-#define R2_VAL  33000 //33K ohm for R2
+#define R1_VAL 100000.0f //100K ohm for R1
+#define R2_VAL  33000.0f //33K ohm for R2
 #define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
 
 //Battery measurement constants
@@ -42,10 +40,10 @@ bool DEBUG = true;
 #define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
 //MOSFET switching times (seconds)
-#define MOSFET_TURN_ON   0.000000021 
-#define MOSFET_RISE_TIME 0.000000120 
-#define MOSFET_TURN_OFF  0.000000180 
-#define MOSFET_FALL_TIME 0.000000115
+#define MOSFET_TURN_ON   0.000000021f 
+#define MOSFET_RISE_TIME 0.000000120f 
+#define MOSFET_TURN_OFF  0.000000180f 
+#define MOSFET_FALL_TIME 0.000000115f
 #define MOSFET_ON_DELAY  (MOSFET_TURN_ON  + MOSFET_RISE_TIME)
 #define MOSFET_OFF_DELAY (MOSFET_TURN_OFF + MOSFET_FALL_TIME)
 
@@ -54,47 +52,35 @@ bool DEBUG = true;
 ******************/
 
 /* CHARGING FET PIN ASSIGNMENTS*/
-/* These pin assignments are not likely to be driven seperately
-    as the FETs will be driven from battery bypass FETs*/
-/*
-#define CHG_FET1  //paired with OUT_FET2
-#define CHG_FET2  //paired with OUT_FET2
+//assign CHG_FET macro with a U09PD.. PCB pin ID
+#define CHG_FET1     U09PD2
+#define CHG_FET2     U09PD5
 
-#define CHG_FET3  //paired with OUT_FET4
-#define CHG_FET4  //paired with OUT_FET4
+#define CHG_FET3     U09PD8  
+#define CHG_FET4     U09PD9  
 
-#define CHG_FET5  //paired with OUT_FET6
-#define CHG_FET6  //paired with OUT_FET6
+#define CHG_FET5     U09PD12  
+#define CHG_FET6     U09PD22 
 
-#define CHG_FET7  //paired with OUT_FET8
-#define CHG_FET8  //paired with OUT_FET8
+#define CHG_FET7     U09PD24 
+#define CHG_FET8     U09PD25  
 
-#define CHG_FET9  //paired with OUT_FET9
-#define CHG_FET10 //paired with OUT_FET9
-*/
-
-/* INTERRUPT BUTTON PIN ASSIGNMENTS */
-//      NAME       DIGITAL PIN #    
-#define BUTTON0     30 //60      //Calls battery case 0
-#define BUTTON1     21 //31 //59      //Calls battery case 1
-#define BUTTON2     32 //58      //Calls battery case 2
-#define BUTTON3     33 //57      //Calls battery case 3
-#define BUTTON4     34 //56      //Calls battery case 4
-#define BUTTON5     35 //55      //Calls FULL_FET_DISCONNECT()
+#define CHG_FET9     U09PD27 
+#define CHG_FET10    U09PD29
 
 /* OUTPUT FET PIN ASSIGNMENTS*/
-            //current pin assignments are for arduino ATMega
-#define OUT_FET11   2
-#define OUT_FET12   3
-#define OUT_FET13   4
-#define OUT_FET14   5
-#define OUT_FET15   6
-#define OUT_FET16   7
-#define OUT_FET17   8
-#define OUT_FET18   9
-#define OUT_FET19  10
-#define OUT_FET20  11
-#define OUT_FET21  12
+//assign OUT_FET.. with a U09PD.. PCB pin ID
+#define OUT_FET11    U09PD4
+#define OUT_FET12    U09PD3
+#define OUT_FET13    U09PD7
+#define OUT_FET14    U09PD6   
+#define OUT_FET15    U09PD11   
+#define OUT_FET16    U09PD10  
+#define OUT_FET17    U09PD23   
+#define OUT_FET18    U09PD13   
+#define OUT_FET19    U09PD28 
+#define OUT_FET20    U09PD26 
+#define OUT_FET21    U09PD30  
 //NOTE: Digital Pin 1 is TX and messes everything up if its populated
 
 /**
@@ -138,6 +124,33 @@ FETs 1-10 are charging FETs
 FETs 11-21 are output FET pin assignments 2-11
 */
 
+/**GLOBAL PIN ARRAYS*/
+static int output_fet_array[FET_ARRAY_LEN] = {
+    OUT_FET11, OUT_FET12, OUT_FET13, 
+    OUT_FET14, OUT_FET15, OUT_FET16, 
+    OUT_FET17, OUT_FET18, OUT_FET19, 
+    OUT_FET20, OUT_FET21 
+};
+
+static int charging_fet_array[NUM_CHG_FETS] = {
+    CHG_FET1, CHG_FET2, CHG_FET3, CHG_FET4,
+    CHG_FET5, CHG_FET6, CHG_FET7, CHG_FET8, 
+    CHG_FET9, CHG_FET10
+};
+
+static int adc_pins[5] = {ADC0, ADC1, ADC2, ADC3, ADC4};
+
+/** GLOBAL OUTPUT FET ASSIGNMENT ARRAY*/
+    //Fet assignment array. The index of the array is the battery case. ie, [0][0] is case 0, [1][0] is case 1
+static int FET_assignments[NUM_BATTS][NUM_FETS] = { 
+    { OUT_FET12, OUT_FET15, OUT_FET17, OUT_FET19, OUT_FET21 }, 
+    { OUT_FET11, OUT_FET14, OUT_FET17, OUT_FET19, OUT_FET21 },
+    { OUT_FET11, OUT_FET13, OUT_FET16, OUT_FET19, OUT_FET21 },
+    { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET18, OUT_FET21 },
+    { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET17, OUT_FET20 } 
+};
+
+
 // global array continaing measured battery voltages
 // used for determining the highest and lowest voltages of a single battery array with iterations
 battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
@@ -148,48 +161,46 @@ battery batts_array[NUM_BATTS]; // {batt_0, batt_1, ...}
 
 void setup(){
     
+    //respective FET assignment functions
+    assign_output_fets(); //also assigns ADC pin 
+    assign_charge_fets();
+
     // Establish serial port for debugging
     if (DEBUG)
     {
         Serial.begin(19200);            //serial output for debugging
-    }
 
-    //integer values reflect arduino mega pins
-    int adc_pins[5] = {A0, A1, A2, A3, A4}; //ADC pins are read as integers so we'll throw them in here for pin assignments 
+        //formatted serial output of assignment function results 
+        for(int i = 0; i < NUM_BATTS; i++){
 
-    //Fet assignment array. The index of the array is the battery case. ie, [0][0] is case 0, [1][0] is case 1
-    int FET_assignments[NUM_BATTS][NUM_FETS] = { 
-        { OUT_FET12, OUT_FET15, OUT_FET17, OUT_FET19, OUT_FET21 }, 
-        { OUT_FET11, OUT_FET14, OUT_FET17, OUT_FET19, OUT_FET21 },
-        { OUT_FET11, OUT_FET13, OUT_FET16, OUT_FET19, OUT_FET21 },
-        { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET18, OUT_FET21 },
-        { OUT_FET11, OUT_FET13, OUT_FET15, OUT_FET17, OUT_FET20 } };
+            //printf("Battery %d configuration\n", i);
+            Serial.print("Battery "); Serial.print(i); Serial.println(" configuration");
 
-    //iterate over the array to perform pin assignments and set charging flags low
-    for (int battery_case_index = 0; battery_case_index < NUM_BATTS; battery_case_index++)
-    {
-        //Since we are already iterating over the array, lets initialize the adc pin and the is_charging flag in the structure
-        batts_array[battery_case_index].adc_pin_assignment = adc_pins[battery_case_index];
-        Serial.print("Assigned ADC Pin: ");
-        Serial.println(batts_array[battery_case_index].adc_pin_assignment);
+            //printf("    is_charging: %d\n", batts_array[i].is_charging);
+            Serial.print("      is_charging: "); Serial.println(batts_array[i].is_charging);
 
-        batts_array[battery_case_index].is_charging        = false;
+            //printf("    adc_pin_assignment: %d\n", batts_array[i].adc_pin_assignment);
+            Serial.print("      adc_pin_assignement: "); Serial.println(batts_array[i].adc_pin_assignment);
 
-        //itertate in 2d to assign FET config to each battery
-        for (int FET_assignment_index = 0; FET_assignment_index < NUM_FETS ; FET_assignment_index++)
-        {
-            pinMode(FET_assignment_index, OUTPUT);  //might as well set the pins to outputs while we are iterating
-        
-            if (DEBUG)
-            {
-            Serial.print("Batt_Case ");
-            Serial.print(battery_case_index);
-            Serial.print(", OUT_FET ");
-            Serial.print(FET_assignment_index);
-            Serial.println(", configured to output");
+            //printf("    OUT_FETS: ");
+            Serial.print("      OUT_FETS: ");
+            
+            for(int ii = 0; ii < 5; ii++){
+                //printf("%d, ", batts_array[i].OUT_FETS[ii]);
+                Serial.print(batts_array[i].OUT_FETS[ii]);
             }
-            //set the FETS array in the structure to the 2d element of the FET_assignments array
-            batts_array[battery_case_index].FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
+            //printf("\n");
+            Serial.println(" ");
+
+            //printf("        CHARGE_FETS: ");
+            Serial.print("      CHARGE_FETS: ");
+
+            for(int ii = 0; ii < 2; ii++){
+                //printf("%d, ", batts_array[i].CHARGE_FETS[ii]);
+                Serial.print(batts_array[i].CHARGE_FETS[ii]);
+            }
+            //printf("\n");
+            Serial.println(" ");
         }
     }
 
@@ -221,8 +232,6 @@ void loop(void){
       BATT_CASE_SWITCH(0);
 
       array_loaded_voltages();
-
-
 
         while (1)
         {
@@ -285,11 +294,6 @@ void loop(void){
 
 //Default array case, everything low
 void FULL_FET_DISCONNECT(){
-    int output_fet_array[FET_ARRAY_LEN] = {
-        OUT_FET11, OUT_FET12, OUT_FET13, 
-        OUT_FET14, OUT_FET15, OUT_FET16, 
-        OUT_FET17, OUT_FET18, OUT_FET19, 
-        OUT_FET20, OUT_FET21 };
 
     if (DEBUG)
     {
@@ -306,8 +310,8 @@ void FULL_FET_DISCONNECT(){
 } //end FULL_FET_DISCONNECT
 
 
-inline void BATT_CASE_SWTICH(int batt_case) {
-    BATT_CASE_SWTICH(batt_case);
+inline void BATT_CASE_SWTICH(int batt_case){
+    BATT_CASE_SWITCH(batt_case);
 }
 /***
  * This function handles setting the battery bypass
@@ -320,7 +324,7 @@ void BATT_CASE_SWITCH(int batt_case){
 
     for (int i = 0; i < NUM_FETS; i++)
     {
-        digitalWrite(batts_array[batt_case].FETS[i], HIGH);
+        digitalWrite(batts_array[batt_case].OUT_FETS[i], HIGH);
     }
     
     delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
@@ -333,9 +337,9 @@ void BATT_CASE_SWITCH(int batt_case){
 } //end BATT_CASE_0
 
 
-/*******************************
- * OTHER FUNCTION DECLARATIONS *
- *******************************/
+/*************************
+ * MEASUREMENT FUNCTIONS *
+ *************************/
 
 void array_loaded_voltages(){
 
@@ -366,3 +370,47 @@ void array_unloaded_voltages(){
     array_loaded_voltages();
 }
 
+/****************************
+ * TERTIARY SETUP FUNCTIONS *
+ ****************************/
+
+void assign_output_fets(){
+
+    //iterate over the batts_array and x of FET_assignments to perform pin assignments and set charging flags low
+    for (int battery_case_index = 0; battery_case_index < NUM_BATTS; battery_case_index++)
+    {
+        //Since we are already iterating over the array, lets initialize the adc pin and the is_charging flag in the structure
+        batts_array[battery_case_index].adc_pin_assignment = adc_pins[battery_case_index];
+        //Serial.print("Assigned ADC Pin: ");
+       // Serial.println(batts_array[battery_case_index].adc_pin_assignment);
+
+        batts_array[battery_case_index].is_charging = false;
+
+        //itertate in y of FET_assignments to assign FET config to each battery
+        for (int FET_assignment_index = 0; FET_assignment_index < NUM_FETS ; FET_assignment_index++)
+        {
+            pinMode(FET_assignments[battery_case_index][FET_assignment_index], OUTPUT);  //a little clunky, but beats having another for loop 
+        
+            //set the FETS array in the structure to the 2d element of the FET_assignments array
+            batts_array[battery_case_index].OUT_FETS[FET_assignment_index] = FET_assignments[battery_case_index][FET_assignment_index];
+        }
+    }
+}
+
+void assign_charge_fets(){
+
+    int j = 0;
+    int ii = 0;
+
+    for (int i = 0; i < NUM_CHG_FETS; i++, ii++)
+    {
+        pinMode(charging_fet_array[i], OUTPUT);
+
+        if ( (i % 2 == 0) && (i != 0) )
+        {
+            j++;
+            ii = 0;
+        }
+        batts_array[j].CHARGE_FETS[ii] = charging_fet_array[i];        
+    }
+}
