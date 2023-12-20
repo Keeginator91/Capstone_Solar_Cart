@@ -1,10 +1,10 @@
 /**
  * @file Array_control.h
  * @author Keegan Smith (keeginator42@gmail.com)
- * @brief This file contains function prototypes and 
- *    the battery structure for Battery_array_control
- * @version 0.8
- * @date 2023-12-19
+ * @brief This file contains function prototypes, the battery structure for 
+ *    Battery_array_control as well as declared macros for math and pin assignments
+ * @version 0.9
+ * @date 2023-12-20
  * 
  * @copyright Copyright (c) 2023
  **/
@@ -12,7 +12,7 @@
 #ifndef Array_control_H
 
 #define NUM_BATTS 5  //Number of batteries in the array
-#define NUM_OUT_FETS_PER_BATT  5  //Number of output FETS used per a battery
+#define NUM_OUT_FETS_PER_BATT  5  //Number of output FETS used per battery
 #define NUM_CHG_FETS_PER_BATT  2  //Number of charging FETS used per battery
 #define NUM_CHG_FETS  10 //total number of charging fets   
 #define NUM_OUT_FETS  11 //total number of output FETS
@@ -22,10 +22,11 @@
 #define REF_VOLT          5.0f //reference voltage value
 #define ADC_CONVERS_FACT   (REF_VOLT / ADC_RESOLUTION)
 
-//Voltage divider network conversion constants
-#define R1_VAL 100000.0f //100K ohm for R1
-#define R2_VAL  33000.0f //33K ohm for R2
-#define R_NET_SCALE_FACTOR ( R2_VAL / (R1_VAL + R2_VAL))  //Scaling factor to caclulate voltage divider input voltage
+//Voltage divider network conversion constants for ADC circuit
+#define R_NET_R1_VAL 100000.0f //100K ohm for R1
+#define R_NET_R2_VAL  33000.0f //33K ohm for R2
+#define R_NET_SCALE_FACTOR ( R_NET_R2_VAL / (R_NET_R1_VAL + R_NET_R2_VAL))  
+      //Scaling factor to caclulate voltage divider input voltage
 
 //Battery measurement constants
 #define BATT_MAX_VOLTS   0
@@ -37,8 +38,10 @@
 #define MOSFET_RISE_TIME 0.000000120f 
 #define MOSFET_TURN_OFF  0.000000180f 
 #define MOSFET_FALL_TIME 0.000000115f
+#define MOSFET_ON_DELAY  (MOSFET_TURN_ON  + MOSFET_RISE_TIME)
+#define MOSFET_OFF_DELAY (MOSFET_TURN_OFF + MOSFET_FALL_TIME)
 
-/***    PCB pin label to arduino pin id *****/
+/***    PCB schematic pin label to arduino pin id *****/
 #define U09PD2  2
 #define U09PD3  3
 #define U09PD4  4
@@ -69,7 +72,14 @@
 #define U09PD29 29
 #define U09PD30 30
 
+// ADC PIN DECLARATIONS (using pin numbers from ATMega2560)
+#define ADC0 54  //Battery 1
+#define ADC1 55  //Battery 2
+#define ADC2 56  //Battery 3
+#define ADC3 57  //Battery 4
+#define ADC4 58  //Battery 5
 
+/** battery structure declaration **/
 typedef struct battery
 {
    float voltage_mes;
@@ -79,16 +89,16 @@ typedef struct battery
    int   CHARGE_FETS[NUM_CHG_FETS_PER_BATT];
 } battery;
 
-/** Tertiary setup functioln */
+/** Tertiary setup functions **/
 void assign_output_fets();
 void assign_charge_fets();
 
-/** Functions to set the output configuration of the array */
+/** Functions to set the MOSFET output configuration **/
 void FULL_FET_DISCONNECT();
 inline void BATT_CASE_SWTICH(int batt_case);
 void BATT_CASE_SWTICH(int batt_case); 
 
-/** Measurement functions */
+/** Measurement functions **/
 void array_loaded_voltages();
 void array_unloaded_voltages();
 
