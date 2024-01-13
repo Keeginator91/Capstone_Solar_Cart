@@ -20,8 +20,8 @@
 
 /* CHARGING FET PIN ASSIGNMENTS*/
 //assign CHG_FET macro with a U09PD.. PCB pin ID
-#define CHG_FET1     U09PD2
-#define CHG_FET2     U09PD5
+#define CHG_FET1     U09PD2             // Battery 1 Positive (solar panel positive)
+#define CHG_FET2     U09PD5             // Battery 1 Negative (solar panel negative)
 
 #define CHG_FET3     U09PD8  
 #define CHG_FET4     U09PD9  
@@ -120,6 +120,9 @@ const int FET_assignments[NUM_BATTS][NUM_OUT_FETS_PER_BATT] = {
 
 void setup(){
     
+    // FIX
+    Serial.begin(19200);            //serial output for debugging 
+
     //respective FET assignment functions
     assign_output_fets(); //also assigns ADC pin 
     assign_charge_fets();
@@ -189,7 +192,7 @@ void loop(void){
 
       // Manually change the input to BATT_CASE_SWITCH() to run through each case:
       Serial.println("Loop Debug");
-      BATT_CASE_SWITCH(0);
+      BATT_CASE_SWITCH(1);
 
       array_loaded_voltages();
 
@@ -217,7 +220,8 @@ void loop(void){
         for (int i = 0; i < NUM_BATTS; i++) {
             
             //we want to ingore the lower battery if it's already being charged.
-            if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
+            // if (batts_array[i].voltage_mes < min && !batts_array[i].is_charging) {
+            if (batts_array[i].voltage_mes < min) {
                 min_batt_index = i;
                 min = batts_array[i].voltage_mes;
             }
@@ -228,20 +232,30 @@ void loop(void){
             }
         }
 
+        // ******** FIX ******** //
+        Serial.print("Battery with minimum voltage: ");
+        Serial.println(min_batt_index);
+
         //check for a maxed or dead battery and charge the dead one, or take the max battery off 
             //and charge the battery with the lowest voltage
-        if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS 
-                    || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
+        // if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS 
+        //            || batts_array[min_batt_index].voltage_mes <= BATT_FLOOR_VOLTS) {
             
-            FULL_FET_DISCONNECT(); // disengage all FETS 
+        //    FULL_FET_DISCONNECT(); // disengage all FETS 
 
             //Use the min index to change the charging scheme to the lowest battery in the array
                     //we'll do this by passing the min battery index through the case switch
-            BATT_CASE_SWITCH(min_batt_index);
-        }
-        else {
-            BATT_CASE_SWTICH(0); //if all the batteries are evenly charged, then we'll just go to a default case so that nothing gets borked
-        }    
+        //  BATT_CASE_SWITCH(min_batt_index);
+        //}
+        //else {
+        //    BATT_CASE_SWTICH(0); //if all the batteries are evenly charged, then we'll just go to a default case so that nothing gets borked
+        //}  
+
+        FULL_FET_DISCONNECT(); // disengage all FETs prior to changing case
+
+        BATT_CASE_SWITCH(min_batt_index); // Switch to the case with the lowest measured battery terminal voltage
+
+        delay(60000);
     }//end else
 
 
@@ -262,13 +276,21 @@ void FULL_FET_DISCONNECT(){
          Serial.println("FETs disconnected");
     }
 
+    // Disengage "charge" MOSFETs connecting batteries to solar panel
+    for (int i = 0; i < NUM_CHG_FETS; i++)
+    {
+        digitalWrite(charging_fet_array[i], LOW);
+    }
+
+    delay(MOSFET_OFF_DELAY);
+    
+    // Disengage series "output" MOSFETs
     for (int i = 0; i < NUM_OUT_FETS; i++)
     {
         digitalWrite(output_fet_array[i], LOW);
     }
     
     delay(MOSFET_OFF_DELAY);
-
 } //end FULL_FET_DISCONNECT
 
 
@@ -290,9 +312,19 @@ void BATT_CASE_SWITCH(int batt_case){
     }
     
     delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
+
+    for (int i = 0; i < NUM_CHG_FETS_PER_BATT; i++)
+    {
+        digitalWrite(batts_array[batt_case].CHARGE_FETS[i], HIGH);
+    }
+
+    delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
     batts_array[batt_case].is_charging = true; //raise is_charging flag specific case
 
     if(DEBUG){
+      Serial.print("Case ");
+      Serial.print(batt_case);
+      Serial.print(": \n");
       Serial.println("Case switched");
     }
 
@@ -307,8 +339,9 @@ void array_loaded_voltages(){
 
     for (int i = 0; i < NUM_BATTS; i++)
     {
-        batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
-
+        // batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT ) / R_NET_SCALE_FACTOR;
+        batts_array[i].voltage_mes = (analogRead(batts_array[i].adc_pin_assignment) * ADC_CONVERS_FACT );
+        
         if(DEBUG){
           Serial.print("Raw ADC Value: ");
           Serial.println(analogRead(batts_array[i].adc_pin_assignment));

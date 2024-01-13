@@ -29,8 +29,8 @@
       //Scaling factor to caclulate voltage divider input voltage
 
 //Battery measurement constants
-#define BATT_MAX_VOLTS   0
-#define BATT_FLOOR_VOLTS 0
+#define BATT_MAX_VOLTS   5.00f
+#define BATT_FLOOR_VOLTS 0.00f
 #define UNLOADED_VOLTAGE_MES_WAIT_TIME //ms
 
 //MOSFET switching times (seconds)
@@ -73,11 +73,11 @@
 #define U09PD30 30
 
 // ADC PIN DECLARATIONS (using pin numbers from ATMega2560)
-#define ADC0 54  //Battery 1
-#define ADC1 55  //Battery 2
-#define ADC2 56  //Battery 3
-#define ADC3 57  //Battery 4
-#define ADC4 58  //Battery 5
+#define ADC0 54  //Battery 1 (54)
+#define ADC1 55  //Battery 2 (55)
+#define ADC2 56  //Battery 3 (56)
+#define ADC3 57  //Battery 4 (57)
+#define ADC4 58  //Battery 5 (58)
 
 /** battery structure declaration **/
 typedef struct battery
