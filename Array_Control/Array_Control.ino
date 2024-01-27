@@ -120,9 +120,6 @@ const int FET_assignments[NUM_BATTS][NUM_OUT_FETS_PER_BATT] = {
 
 void setup(){
     
-    // FIX
-    Serial.begin(19200);            //serial output for debugging 
-
     //respective FET assignment functions
     assign_output_fets(); //also assigns ADC pin 
     assign_charge_fets();
@@ -232,10 +229,6 @@ void loop(void){
             }
         }
 
-        // ******** FIX ******** //
-        Serial.print("Battery with minimum voltage: ");
-        Serial.println(min_batt_index);
-
         //check for a maxed or dead battery and charge the dead one, or take the max battery off 
             //and charge the battery with the lowest voltage
         // if (batts_array[max_batt_index].voltage_mes >= BATT_MAX_VOLTS 
@@ -255,7 +248,7 @@ void loop(void){
 
         BATT_CASE_SWITCH(min_batt_index); // Switch to the case with the lowest measured battery terminal voltage
 
-        delay(60000);
+        delay(60000);                     // Arbitrary delay time of 1 minute for testing purposes
     }//end else
 
 
@@ -283,7 +276,7 @@ void FULL_FET_DISCONNECT(){
     }
 
     delay(MOSFET_OFF_DELAY);
-    
+
     // Disengage series "output" MOSFETs
     for (int i = 0; i < NUM_OUT_FETS; i++)
     {
@@ -312,6 +305,7 @@ void BATT_CASE_SWITCH(int batt_case){
     }
     
     delay(MOSFET_ON_DELAY); //wait for the FETS to fully turn on
+   
 
     for (int i = 0; i < NUM_CHG_FETS_PER_BATT; i++)
     {
